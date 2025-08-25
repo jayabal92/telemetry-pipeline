@@ -1,0 +1,54 @@
+{{- if .Values.producer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-producer
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.producer.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "telemetry-pipeline.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: producer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "telemetry-pipeline.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: producer
+    spec:
+      serviceAccountName: {{ default (include "telemetry-pipeline.fullname" .) .Values.serviceAccount.name }}
+      containers:
+        - name: producer
+          image: "{{ .Values.producer.image.repository }}:{{ .Values.producer.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: APP_TOPIC
+              value: "{{ .Values.producer.topic }}"
+            - name: APP_PARTITION
+              value: "{{ .Values.producer.partition }}"
+            - name: APP_CSV_PATH
+              value: "{{ .Values.producer.csv.filename }}"
+            - name: APP_READ_INTERVAL
+              value: "{{ .Values.producer.readIntervalSeconds | default 60 }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "telemetry-pipeline.fullname" . }}-config
+          volumeMounts:
+            - name: producer-csv
+              mountPath: /data
+          resources: {{- toYaml .Values.producer.resources | nindent 12 }}
+      volumes:
+        - name: producer-csv
+{{- if and .Values.producer.csv.pvc.enabled (not .Values.producer.csv.pvc.existingClaim) }}
+          persistentVolumeClaim:
+            claimName: {{ include "telemetry-pipeline.fullname" . }}-producer-csv
+{{- else if .Values.producer.csv.pvc.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.producer.csv.pvc.existingClaim }}
+{{- else }}
+          emptyDir: {}
+{{- end }}
+{{- end }}

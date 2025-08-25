@@ -1,0 +1,23 @@
+postgresql:
+  enabled: true
+  auth:
+    username: telemetry
+    password: telemetry_pwd
+    database: telemetry
+  primary:
+    persistence:
+      enabled: false   # ephemeral for dev
+
+producer:
+  csv:
+    pvc:
+      enabled: true
+      size: 1Gi
+  topic: "gpu-telemetry-dev"
+
+consumer:
+  replicas: 1
+  topic: "gpu-telemetry-dev"
+
+api:
+  replicas: 1

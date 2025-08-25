@@ -1,0 +1,9 @@
+auth:
+  username: telemetry
+  password: telemetry123
+  database: telemetry
+
+primary:
+  persistence:
+    enabled: true
+    size: 2Gi

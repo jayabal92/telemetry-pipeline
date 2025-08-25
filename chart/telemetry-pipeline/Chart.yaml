@@ -1,0 +1,15 @@
+apiVersion: v2
+name: telemetry-pipeline
+description: Telemetry pipeline (producer, consumer, API, PostgreSQL)
+type: application
+version: 0.1.0
+appVersion: "1.0"
+
+files:
+  - migrations/*.sql
+
+dependencies:
+  - name: postgresql
+    version: 16.4.4   # check: `helm repo add bitnami https://charts.bitnami.com/bitnami`
+    repository: https://charts.bitnami.com/bitnami
+    condition: postgresql.enabled

@@ -1,0 +1,24 @@
+postgresql:
+  enabled: true
+  auth:
+    username: telemetry
+    password: ${PG_PASSWORD}   # use external secrets / helm --set or sealed-secrets
+    database: telemetry
+  primary:
+    persistence:
+      enabled: true
+      size: 200Gi
+
+producer:
+  csv:
+    pvc:
+      size: 50Gi
+      storageClass: gp2  # or your CSI class
+
+consumer:
+  replicas: 3
+
+api:
+  replicas: 3
+  service:
+    type: LoadBalancer

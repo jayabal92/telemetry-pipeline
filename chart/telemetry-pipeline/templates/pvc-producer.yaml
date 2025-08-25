@@ -1,0 +1,16 @@
+{{- if and .Values.producer.enabled .Values.producer.csv.pvc.enabled (not .Values.producer.csv.pvc.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-producer-csv
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+spec:
+  accessModes: {{- toYaml .Values.producer.csv.pvc.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.producer.csv.pvc.size }}
+  {{- if .Values.producer.csv.pvc.storageClass }}
+  storageClassName: "{{ .Values.producer.csv.pvc.storageClass }}"
+  {{- end }}
+{{- end }}

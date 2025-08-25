@@ -1,0 +1,74 @@
+# --- common ---
+namespaceOverride: ""
+labels: {}
+annotations: {}
+
+image:
+  pullPolicy: IfNotPresent
+
+producer:
+  enabled: true
+  image:
+    repository: jayabal92/telemetry-producer
+    tag: v1
+  # CSV source mounted at /data/input.csv
+  csv:
+    pvc:
+      enabled: true
+      existingClaim: ""      # set to existing PVC name to reuse
+      size: 1Gi
+      storageClass: ""       # inherit default if empty
+      accessModes: ["ReadWriteOnce"]
+    filename: "/data/input.csv"
+  topic: "gpu-telemetry"
+  partition: -1
+  readIntervalSeconds: 60   # poll interval to re-read CSV
+  args: []                  # extra CLI args to your producer
+  env: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+consumer:
+  enabled: true
+  replicas: 1
+  image:
+    repository: jayabal92/telemetry-consumer
+    tag: v1
+  groupId: "telemetry-consumers"
+  topic: "gpu-telemetry"
+  partition: -1
+  poll:
+    maxMessages: 100
+    waitMs: 500
+  env: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+api:
+  enabled: true
+  replicas: 1
+  image:
+    repository: jayabal92/telemetry-api
+    tag: v1
+  service:
+    type: ClusterIP
+    port: 8080
+  env: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+db:
+  host: telemetry-pipeline-timescaledb
+  port: "5432"
+  name: telemetry
+  user: telemetry
+  password: telemetry
+
+queue:
+  # points to your msg-queue headless service in the msg-que

@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package mq;
+
+option go_package = "github.com/testorg/msg-queue/proto;proto";
+
+message Message {
+  bytes key = 1;
+  bytes value = 2;
+  int64 timestamp_ms = 3;
+  map<string,string> headers = 4;
+}
+
+message ProduceRequest {
+  string topic = 1;
+  int32 partition = 2; // -1 for auto/hashed
+  repeated Message messages = 3;
+  enum Acks { NONE = 0; LEADER = 1; ALL = 2; }
+  Acks acks = 4;
+}
+
+message ProduceResponse {
+  int32 partition = 1;
+  repeated int64 offsets = 2;
+}
+
+message FetchRequest {
+  string topic = 1;
+  int32 partition = 2;
+  int64 offset = 3;
+  int32 max_messages = 4;
+  int32 max_bytes = 5;
+  int32 wait_ms = 6;
+}
+
+message FetchedMessage {
+  int64 offset = 1;
+  Message message = 2;
+}
+
+message FetchResponse {
+  repeated FetchedMessage records = 1;
+  int64 high_watermark = 2;
+}
+
+message TopicPartitionMeta {
+  string topic = 1;
+  int32 partition = 2;
+  string leader = 3; // broker id
+  repeated string isr = 4; // in-sync replicas
+}
+
+message MetadataRequest { repeated string topics = 1; }
+message MetadataResponse {
+  repeated TopicPartitionMeta partitions = 1;
+  repeated string brokers = 2;
+}
+
+message CreateTopicRequest { string topic = 1; int32 partitions = 2; int32 rf = 3; }
+message CreateTopicResponse {}
+
+message DeleteTopicRequest { string topic = 1; }
+message DeleteTopicResponse {}
+
+message CommitOffsetsRequest {
+  string group_id = 1;
+  string topic = 2;
+  int32 partition = 3;
+  int64 offset = 4;
+}
+message CommitOffsetsResponse {}
+
+message FetchOffsetsRequest { string group_id = 1; string topic = 2; }
+message FetchOffsetsResponse { repeated GroupOffset offsets = 1; }
+message GroupOffset { int32 partition = 1; int64 offset = 2; }
+
+message ReplicateRequest {
+  string topic = 1;
+  int32 partition = 2;
+  int64 base_offset = 3;
+  repeated Message messages = 4;
+  int64 leader_epoch = 5;
+}
+message ReplicateResponse {
+  int64 last_offset = 1;
+}
+
+// ----------- SERVICES -----------
+
+// Client-facing API
+service MQ {
+  rpc Produce(ProduceRequest) returns (ProduceResponse);
+  rpc Fetch(FetchRequest) returns (FetchResponse);
+  rpc Metadata(MetadataRequest) returns (MetadataResponse);
+  rpc CreateTopic(CreateTopicRequest) returns (CreateTopicResponse);
+  rpc DeleteTopic(DeleteTopicRequest) returns (DeleteTopicResponse);
+  rpc CommitOffsets(CommitOffsetsRequest) returns (CommitOffsetsResponse);
+  rpc FetchOffsets(FetchOffsetsRequest) returns (FetchOffsetsResponse);
+}
+
+// Leader-to-follower API
+service Replicator {
+  rpc Append(ReplicateRequest) returns (ReplicateResponse);
+}
