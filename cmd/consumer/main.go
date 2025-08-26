@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
@@ -19,8 +20,10 @@ import (
 )
 
 const (
+	batchSize   = 500
 	maxMessages = 1000
 	waitMs      = 500
+	groupID     = "telemetry-consumers"
 )
 
 func main() {
@@ -41,39 +44,123 @@ func main() {
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
-		log.Fatalf("❌ failed to connect to Postgres: %v", err)
+		log.Fatalf("failed to connect to Postgres: %v", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatalf("❌ DB unreachable: %v", err)
+		log.Fatalf("DB unreachable: %v", err)
 	}
-	log.Println("✅ Connected to PostgreSQL")
+	log.Println("Connected to PostgreSQL")
+
+	// === Connect to DB (pgx) ===
+	conn, err := pgx.Connect(context.Background(), psqlInfo)
+	if err != nil {
+		log.Fatalf("failed to connect to Postgres: %v", err)
+	}
+	defer conn.Close(context.Background())
+	log.Println("Connected to PostgreSQL via pgx")
 
 	// === Connect to gRPC MQ ===
-	conn, err := grpc.NewClient(queueAddr, grpc.WithInsecure())
+	grpcConn, err := grpc.NewClient(queueAddr, grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("❌ failed to dial msg-queue: %v", err)
+		log.Fatalf("failed to dial msg-queue: %v", err)
 	}
-	defer conn.Close()
+	defer grpcConn.Close()
 
-	client := pb.NewMQClient(conn)
+	client := pb.NewMQClient(grpcConn)
 
 	// Graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go handleSignals(cancel)
 
-	offset := int64(0) // TODO: in real impl, fetch committed offset from DB or msg-queue
+	// offset := int64(15100) // TODO: in real impl, fetch committed offset from DB or msg-queue
+
+	// Get last committed offset
+	offset := loadOffset(ctx, conn, groupID, topic, int(partition))
+
+	// for {
+	// 	select {
+	// 	case <-ctx.Done():
+	// 		log.Println("⏹ Consumer shutting down...")
+	// 		return
+	// 	default:
+	// 		// === Fetch from MQ ===
+	// 		log.Printf("Sending Fetch request: topic: %s partition: %d offset: %d Maxmsgs: %d", topic, partition, offset, maxMessages)
+	// 		resp, err := client.Fetch(ctx, &pb.FetchRequest{
+	// 			Topic:       topic,
+	// 			Partition:   partition,
+	// 			Offset:      offset,
+	// 			MaxMessages: maxMessages,
+	// 			WaitMs:      waitMs,
+	// 		})
+	// 		if err != nil {
+	// 			log.Printf("⚠️ fetch error: %v", err)
+	// 			time.Sleep(time.Second)
+	// 			continue
+	// 		}
+
+	// 		if len(resp.Records) == 0 {
+	// 			log.Println("no records received")
+	// 			time.Sleep(2 * time.Second)
+	// 			continue
+	// 		}
+
+	// 		log.Printf("number of messages received %d", len(resp.Records))
+	// 		// === Insert records into DB ===
+	// 		for _, rec := range resp.Records {
+	// 			// log.Printf("Received offset=%d key=%s value=%s headers=%v",
+	// 			// 	rec.Offset, string(rec.Message.Key), string(rec.Message.Value), rec.Message.Headers)
+	// 			offset = rec.Offset + 1
+	// 			var telemetry model.Telemetry
+	// 			if err := json.Unmarshal(rec.Message.Value, &telemetry); err != nil {
+	// 				log.Printf("json unmarshal failed: %v", err)
+	// 				continue
+	// 			}
+
+	// 			enrichGPUTelemetry(&telemetry)
+
+	// 			_, err = db.ExecContext(ctx, `
+	// 			INSERT INTO gpu_telemetry (
+	// 				ts, metric_name, gpu_id, device, uuid, model_name,
+	// 				hostname, container, pod, namespace, metric_value, labels_raw
+	// 			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+	// 		`,
+	// 				telemetry.Timestamp,
+	// 				telemetry.MetricName,
+	// 				telemetry.GPUId,
+	// 				telemetry.Device,
+	// 				telemetry.UUID,
+	// 				telemetry.ModelName,
+	// 				telemetry.Hostname,
+	// 				telemetry.Container,
+	// 				telemetry.Pod,
+	// 				telemetry.Namespace,
+	// 				telemetry.Value,
+	// 				toJSONB(telemetry.LabelsRaw),
+	// 			)
+	// 			if err != nil {
+	// 				log.Printf("failed inserting telemetry row: %v", err)
+	// 			} else {
+	// 				log.Printf("Inserted record with offset %d", rec.Offset)
+	// 			}
+	// 			offset = rec.Offset + 1
+	// 		}
+	// 	}
+	// }
+	var batch []model.Telemetry
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("⏹ Consumer shutting down...")
+			// flush leftover
+			if len(batch) > 0 {
+				_ = copyInsert(ctx, conn, batch)
+			}
 			return
 		default:
-			// === Fetch from MQ ===
-			log.Printf("Sending Fetch request: topic: %s partition: %d offset: %d Maxmsgs: %d", topic, partition, offset, maxMessages)
 			resp, err := client.Fetch(ctx, &pb.FetchRequest{
 				Topic:       topic,
 				Partition:   partition,
@@ -89,50 +176,111 @@ func main() {
 
 			if len(resp.Records) == 0 {
 				log.Println("no records received")
-				time.Sleep(2 * time.Second)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
-			log.Printf("number of messages received %d", len(resp.Records))
-			// === Insert records into DB ===
 			for _, rec := range resp.Records {
-				log.Printf("📥 Received offset=%d key=%s value=%s headers=%v",
-					rec.Offset, string(rec.Message.Key), string(rec.Message.Value), rec.Message.Headers)
 				offset = rec.Offset + 1
+
 				var telemetry model.Telemetry
 				if err := json.Unmarshal(rec.Message.Value, &telemetry); err != nil {
-					log.Printf("⚠️ json unmarshal failed: %v", err)
+					log.Printf("json unmarshal failed: %v", err)
 					continue
 				}
+				enrichGPUTelemetry(&telemetry)
 
-				_, err = db.ExecContext(ctx, `
-				INSERT INTO gpu_telemetry (
-					ts, metric_name, gpu_id, device, uuid, model_name,
-					hostname, container, pod, namespace, metric_value, labels_raw
-				) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-			`,
-					telemetry.Timestamp,
-					telemetry.MetricName,
-					telemetry.GPUId,
-					telemetry.Device,
-					telemetry.UUID,
-					telemetry.ModelName,
-					telemetry.Hostname,
-					telemetry.Container,
-					telemetry.Pod,
-					telemetry.Namespace,
-					telemetry.Value,
-					toJSONB(telemetry.LabelsRaw),
-				)
-				if err != nil {
-					log.Printf("❌ failed inserting telemetry row: %v", err)
-				} else {
-					log.Printf("✅ Inserted record with offset %d", rec.Offset)
+				batch = append(batch, telemetry)
+
+				if len(batch) >= batchSize {
+					if err := copyInsert(ctx, conn, batch); err != nil {
+						log.Printf("bulk insert failed: %v", err)
+					} else {
+						log.Printf("Inserted %d rows (last offset=%d)", len(batch), rec.Offset)
+						commitOffset(ctx, conn, groupID, topic, int(partition), offset)
+					}
+					batch = batch[:0]
 				}
-				offset = rec.Offset + 1
+			}
+
+			// insert if any thing left off
+			log.Printf("batch size left over: %v", len(batch))
+			if len(batch) > 0 {
+				if err := copyInsert(ctx, conn, batch); err != nil {
+					log.Printf("bulk insert failed: %v", err)
+				} else {
+					log.Printf("Inserted remaining %d rows (last offset=%d)", len(batch), offset)
+					commitOffset(ctx, conn, groupID, topic, int(partition), offset)
+				}
+				batch = batch[:0]
 			}
 		}
 	}
+}
+
+// copyInsert uses pgx.CopyFrom for bulk insert
+func copyInsert(ctx context.Context, conn *pgx.Conn, telemetryBatch []model.Telemetry) error {
+	rows := make([][]interface{}, len(telemetryBatch))
+	for i, t := range telemetryBatch {
+		rows[i] = []interface{}{
+			t.Timestamp,
+			t.MetricName,
+			t.GPUId,
+			t.Device,
+			t.UUID,
+			t.ModelName,
+			t.Hostname,
+			t.Container,
+			t.Pod,
+			t.Namespace,
+			t.Value,
+			toJSONB(t.LabelsRaw),
+		}
+	}
+
+	_, err := conn.CopyFrom(
+		ctx,
+		pgx.Identifier{"gpu_telemetry"},
+		[]string{
+			"ts", "metric_name", "gpu_id", "device", "uuid", "model_name",
+			"hostname", "container", "pod", "namespace", "metric_value", "labels_raw",
+		},
+		pgx.CopyFromRows(rows),
+	)
+	return err
+}
+
+// persist last committed offset
+func commitOffset(ctx context.Context, conn *pgx.Conn, groupID, topic string, partition int, offset int64) {
+	_, err := conn.Exec(ctx, `
+		INSERT INTO consumer_offsets (group_id, topic, partition, committed_offset)
+		VALUES ($1,$2,$3,$4)
+		ON CONFLICT (group_id, topic, partition)
+		DO UPDATE SET committed_offset = EXCLUDED.committed_offset, updated_at = now()`,
+		groupID, topic, partition, offset)
+	if err != nil {
+		log.Printf("⚠️ failed to commit offset: %v", err)
+	}
+}
+
+// load last committed offset
+func loadOffset(ctx context.Context, conn *pgx.Conn, groupID, topic string, partition int) int64 {
+	var offset int64
+	err := conn.QueryRow(ctx, `
+		SELECT committed_offset FROM consumer_offsets 
+		WHERE group_id=$1 AND topic=$2 AND partition=$3`,
+		groupID, topic, partition).Scan(&offset)
+	if err != nil {
+		log.Printf("no previous offset, starting at 0: %v", err)
+		return 0
+	}
+	log.Printf("Resuming from committed offset %d", offset)
+	return offset
+}
+
+func enrichGPUTelemetry(telemetry *model.Telemetry) {
+	telemetry.Timestamp = time.Now().UTC()
+	// log.Printf("GPU Telemetry after enrich: %v", telemetry)
 }
 
 func toJSONB(m map[string]string) []byte {

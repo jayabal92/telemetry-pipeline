@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.32.0
-// source: mq.proto
+// source: proto/mq.proto
 
 package proto
 
@@ -349,7 +349,7 @@ var MQ_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "mq.proto",
+	Metadata: "proto/mq.proto",
 }
 
 const (
@@ -455,5 +455,5 @@ var Replicator_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "mq.proto",
+	Metadata: "proto/mq.proto",
 }

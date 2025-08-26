@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS gpu_telemetry (
     id SERIAL PRIMARY KEY,
     ts TIMESTAMPTZ NOT NULL,         -- "timestamp"
     metric_name TEXT NOT NULL,       -- "metric_name"
-    gpu_id TEXT NOT NULL,            -- "gpu_id"
+    gpu_id INTEGER NOT NULL,            -- "gpu_id"
     device TEXT,                     -- "device"
     uuid TEXT,                       -- "uuid"
     model_name TEXT,                 -- "modelName"
@@ -17,6 +17,16 @@ CREATE TABLE IF NOT EXISTS gpu_telemetry (
     metric_value DOUBLE PRECISION,   -- "value"
     labels_raw JSONB,                -- "labels_raw"
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Consumer Offset Table
+CREATE TABLE IF NOT EXISTS consumer_offsets (
+    group_id   TEXT NOT NULL,
+    topic      TEXT NOT NULL,
+    partition  INT  NOT NULL,
+    committed_offset     BIGINT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (group_id, topic, partition)
 );
 
 -- Indexes for query performance

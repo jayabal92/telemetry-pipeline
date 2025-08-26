@@ -3,16 +3,26 @@ package model
 import "time"
 
 type Telemetry struct {
+	ID         int64             `json:"id"`
 	Timestamp  time.Time         `json:"timestamp"`
 	MetricName string            `json:"metric_name"`
 	GPUId      int               `json:"gpu_id"`
 	Device     string            `json:"device"`
 	UUID       string            `json:"uuid"`
 	ModelName  string            `json:"modelName"`
-	Hostname   string            `json:"hostname"`
+	Hostname   string            `json:"Hostname"`
 	Container  string            `json:"container"`
 	Pod        string            `json:"pod"`
 	Namespace  string            `json:"namespace"`
 	Value      float64           `json:"value"`
 	LabelsRaw  map[string]string `json:"labels_raw"`
+	CreatedAt  time.Time         `json:"created_at"`
+}
+
+type GPU struct {
+	GPUId     int    `json:"gpu_id"`
+	UUID      string `json:"uuid"`
+	Device    string `json:"device"`
+	ModelName string `json:"model_name"`
+	Hostname  string `json:"hostname"`
 }

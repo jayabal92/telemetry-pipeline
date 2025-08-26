@@ -43,6 +43,12 @@ message FetchResponse {
   int64 high_watermark = 2;
 }
 
+message Broker {
+    string id = 1;     // e.g. "node-b"
+    string host = 2;   // e.g. "10.1.2.3"
+    int32 port = 3;    // e.g. 9092
+}
+  
 message TopicPartitionMeta {
   string topic = 1;
   int32 partition = 2;
@@ -53,7 +59,7 @@ message TopicPartitionMeta {
 message MetadataRequest { repeated string topics = 1; }
 message MetadataResponse {
   repeated TopicPartitionMeta partitions = 1;
-  repeated string brokers = 2;
+  repeated Broker brokers = 2;
 }
 
 message CreateTopicRequest { string topic = 1; int32 partitions = 2; int32 rf = 3; }
