@@ -11,7 +11,7 @@ proto:
 .PHONY: swag
 swag:
 	$(SWAG) init \
-		-g cmd/api/main.go \
+		-g cmd/api-server/main.go \
 		-d . \
 		-o api/docs
 
@@ -33,7 +33,7 @@ run-consumer:
 
 .PHONY: run-api-server
 run-api-server:
-	go run cmd/api/main.go
+	go run cmd/api-server/main.go
 
 .PHONY: tidy
 tidy:

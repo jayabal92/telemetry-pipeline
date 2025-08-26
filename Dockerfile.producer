@@ -1,0 +1,21 @@
+# ---------- Build Stage ----------
+FROM golang:1.23.2-alpine AS builder
+WORKDIR /app
+RUN apk add --no-cache git
+
+# Download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source
+COPY . .
+
+# Build producer binary
+RUN CGO_ENABLED=0 go build -o /bin/producer ./cmd/producer
+
+# ---------- Runtime Stage ----------
+FROM alpine:3.20
+WORKDIR /app
+COPY --from=builder /bin/producer /usr/local/bin/producer
+ENTRYPOINT ["/usr/local/bin/producer"]
+    
