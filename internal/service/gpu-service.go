@@ -15,7 +15,7 @@ func NewGPUService(repo *repository.GPURepository) *GPUService {
 	return &GPUService{repo: repo}
 }
 
-func (s *GPUService) ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, error) {
+func (s *GPUService) ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, int, error) {
 	return s.repo.ListGPUs(ctx, limit, offset)
 }
 

@@ -16,25 +16,31 @@ func NewGPURepository(db *sql.DB) *GPURepository {
 	return &GPURepository{db: db}
 }
 
-func (r *GPURepository) ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT DISTINCT gpu_id, device, hostname
-		FROM gpu_telemetry
-		ORDER BY gpu_id`)
+func (r *GPURepository) ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, int, error) {
+	args := []interface{}{limit, offset}
+	query := `
+	SELECT DISTINCT gpu_id, device, hostname,
+		COUNT(*) OVER() AS total_count
+	FROM gpu_telemetry
+		ORDER BY gpu_id
+		LIMIT $1  OFFSET $2`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
+	totalCount := 0
 	var gpus []model.GPU
 	for rows.Next() {
 		var g model.GPU
-		if err := rows.Scan(&g.GPUId, &g.Device, &g.Hostname); err != nil {
-			return nil, err
+		if err := rows.Scan(&g.GPUId, &g.Device, &g.Hostname, &totalCount); err != nil {
+			return nil, 0, err
 		}
 		gpus = append(gpus, g)
 	}
-	return gpus, nil
+	return gpus, totalCount, nil
 }
 
 // GPU telemetry with pagination and optional time range

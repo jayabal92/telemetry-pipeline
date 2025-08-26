@@ -8,12 +8,18 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	httpSwagger "github.com/swaggo/http-swagger"
 
+	_ "telemetry-pipeline/api/docs" // swagger docs
 	"telemetry-pipeline/internal/handler"
 	"telemetry-pipeline/internal/repository"
 	"telemetry-pipeline/internal/service"
 )
 
+// @title Telemetry API
+// @version 1.0
+// @description API for querying GPU telemetry stored in TimescaleDB
+// @BasePath /api/v1
 func main() {
 	// DB connection
 	dsn := os.Getenv("DB_DSN") // e.g. postgres://user:pass@localhost:5432/telemetry?sslmode=disable
@@ -35,6 +41,7 @@ func main() {
 	r.HandleFunc("/api/v1/gpus", h.ListGPUs).Methods("GET")
 	r.HandleFunc("/api/v1/gpus/{id:[0-9]+}/telemetry", h.GetGPUTelemetry).Methods("GET")
 	r.HandleFunc("/api/v1/gpus/{id:[0-9]+}/metrics/{metric_name}", h.GetGPUMetrics).Methods("GET")
+	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	addr := ":8080"
 	log.Printf("Starting API server on %s ...", addr)

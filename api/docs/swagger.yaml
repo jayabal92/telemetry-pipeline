@@ -1,0 +1,202 @@
+basePath: /api/v1
+definitions:
+  model.GPU:
+    description: GPUs device from where telemetry collected
+    properties:
+      device:
+        type: string
+      gpu_id:
+        type: integer
+      hostname:
+        type: string
+      model_name:
+        type: string
+      uuid:
+        type: string
+    type: object
+  model.GPUResponse:
+    properties:
+      count:
+        type: integer
+      limit:
+        type: integer
+      offset:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/model.GPU'
+        type: array
+      total:
+        type: integer
+    type: object
+  model.Telemetry:
+    description: Telemetry data collected from GPUs
+    properties:
+      Hostname:
+        type: string
+      container:
+        type: string
+      created_at:
+        type: string
+      device:
+        type: string
+      gpu_id:
+        type: integer
+      id:
+        type: integer
+      labels_raw:
+        additionalProperties:
+          type: string
+        type: object
+      metric_name:
+        type: string
+      modelName:
+        type: string
+      namespace:
+        type: string
+      pod:
+        type: string
+      timestamp:
+        type: string
+      uuid:
+        type: string
+      value:
+        type: number
+    type: object
+  model.TelemetryResponse:
+    properties:
+      count:
+        type: integer
+      limit:
+        type: integer
+      offset:
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/model.Telemetry'
+        type: array
+      total:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: API for querying GPU telemetry stored in TimescaleDB
+  title: Telemetry API
+  version: "1.0"
+paths:
+  /gpus:
+    get:
+      description: Returns list of unique GPU IDs available in telemetry data.
+      parameters:
+      - default: 10
+        description: Limit number of records
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.GPUResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List GPUs
+      tags:
+      - Telemetry
+  /gpus/{id}/metrics/{metric_name}:
+    get:
+      description: Returns metrics data for a given GPU ID and metrics name.
+      parameters:
+      - description: GPU ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Metric Name
+        in: path
+        name: metric_name
+        required: true
+        type: string
+      - description: Start time (ISO8601)
+        in: query
+        name: start_time
+        type: string
+      - description: End time (ISO8601)
+        in: query
+        name: end_time
+        type: string
+      - default: 10
+        description: Limit number of records
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TelemetryResponse'
+      summary: Get metrics for a GPU
+      tags:
+      - Telemetry
+  /gpus/{id}/telemetry:
+    get:
+      description: Returns telemetry data for a given GPU ID.
+      parameters:
+      - description: GPU ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Start time (ISO8601)
+        in: query
+        name: start_time
+        type: string
+      - description: End time (ISO8601)
+        in: query
+        name: end_time
+        type: string
+      - default: 10
+        description: Limit number of records
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TelemetryResponse'
+      summary: Get telemetry for a GPU
+      tags:
+      - Telemetry
+swagger: "2.0"

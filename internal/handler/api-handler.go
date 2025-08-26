@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"telemetry-pipeline/internal/model"
 	"telemetry-pipeline/internal/service"
 )
 
@@ -21,22 +22,49 @@ func NewGPUHandler(service *service.GPUService) *GPUHandler {
 	return &GPUHandler{service: service}
 }
 
-// GET /api/v1/gpus
+// @Summary List GPUs
+// @Description Returns list of unique GPU IDs available in telemetry data.
+// @Tags Telemetry
+// @Produce json
+// @Param limit query int false "Limit number of records" default(10)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} model.GPUResponse
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /gpus [get]
 func (h *GPUHandler) ListGPUs(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Got List GPU request ...")
 	// Pagination params
 	limit, offset := getLimitOffset(r)
-	gpus, err := h.service.ListGPUs(r.Context(), limit, offset)
+	gpus, total, err := h.service.ListGPUs(r.Context(), limit, offset)
 	if err != nil {
 		log.Printf("Error in List GPU request: %v", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	writeJSON(w, gpus)
+	resp := model.GPUResponse{
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+		Count:   len(gpus),
+		Results: gpus,
+	}
+	writeJSON(w, resp)
 }
 
-// GET /api/v1/gpus/{id}/telemetry?start_time=...&end_time=...&limit=...&offset=...
+// @Summary Get telemetry for a GPU
+// @Description Returns telemetry data for a given GPU ID.
+// @Tags Telemetry
+// @Produce json
+// @Param id path string true "GPU ID"
+// @Param start_time query string false "Start time (ISO8601)"
+// @Param end_time query string false "End time (ISO8601)"
+// @Param limit query int false "Limit number of records" default(10)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} model.TelemetryResponse
+// @Router /gpus/{id}/telemetry [get]
 func (h *GPUHandler) GetGPUTelemetry(w http.ResponseWriter, r *http.Request) {
+	// GET /api/v1/gpus/{id}/telemetry?start_time=...&end_time=...&limit=...&offset=...
 	log.Printf("Got GPU Telemetry request....")
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -62,19 +90,30 @@ func (h *GPUHandler) GetGPUTelemetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]interface{}{
-		"total":     total,
-		"limit":     limit,
-		"offset":    offset,
-		"count":     len(telemetry),
-		"telemetry": telemetry,
+	resp := model.TelemetryResponse{
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+		Count:   len(telemetry),
+		Results: telemetry,
 	}
 	writeJSON(w, resp)
 }
 
-// GET /api/v1/gpus/{id}/metrics/{metric_name}?start_time=...&end_time=...&limit=...&offset=...
+// @Summary Get metrics for a GPU
+// @Description Returns metrics data for a given GPU ID and metrics name.
+// @Tags Telemetry
+// @Produce json
+// @Param id path string true "GPU ID"
+// @Param metric_name path string true "Metric Name"
+// @Param start_time query string false "Start time (ISO8601)"
+// @Param end_time query string false "End time (ISO8601)"
+// @Param limit query int false "Limit number of records" default(10)
+// @Param offset query int false "Offset for pagination" default(0)
+// @Success 200 {object} model.TelemetryResponse
+// @Router /gpus/{id}/metrics/{metric_name} [get]
 func (h *GPUHandler) GetGPUMetrics(w http.ResponseWriter, r *http.Request) {
-
+	// GET /api/v1/gpus/{id}/metrics/{metric_name}?start_time=...&end_time=...&limit=...&offset=...
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 	metricName := vars["metric_name"]
@@ -94,19 +133,19 @@ func (h *GPUHandler) GetGPUMetrics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	telemetry, total, err := h.service.GetGPUMetrics(r.Context(), gpuID, metricName, startTime, endTime, limit, offset)
+	metrics, total, err := h.service.GetGPUMetrics(r.Context(), gpuID, metricName, startTime, endTime, limit, offset)
 	if err != nil {
 		log.Printf("Error in GPU metrics request: %v", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	resp := map[string]interface{}{
-		"total":     total,
-		"limit":     limit,
-		"offset":    offset,
-		"count":     len(telemetry),
-		"telemetry": telemetry,
+	resp := model.TelemetryResponse{
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+		Count:   len(metrics),
+		Results: metrics,
 	}
 	writeJSON(w, resp)
 }
