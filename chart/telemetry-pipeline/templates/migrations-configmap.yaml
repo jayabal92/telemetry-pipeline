@@ -1,0 +1,19 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "telemetry-pipeline.fullname" . }}-migrations
+  labels:
+    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
+data:
+{{- $files := .Files.Glob "migrations/*.sql" }}
+{{- if not $files }}
+  000_noop.sql: |
+    -- No migration files found. Add SQL files under charts/telemetry-pipeline/migrations/
+{{- else }}
+{{- range $path, $file := $files }}
+  {{ base $path }}: |
+{{ $file | toString | indent 4 }}
+{{- end }}
+{{- end }}
+{{- end }}

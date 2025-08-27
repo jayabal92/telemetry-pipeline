@@ -10,35 +10,35 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "telemetry-pipeline.name" . }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
       app.kubernetes.io/component: consumer
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
         app.kubernetes.io/name: {{ include "telemetry-pipeline.name" . }}
-        app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: consumer
+        app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      serviceAccountName: {{ default (include "telemetry-pipeline.fullname" .) .Values.serviceAccount.name }}
       containers:
         - name: consumer
           image: "{{ .Values.consumer.image.repository }}:{{ .Values.consumer.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
-            - name: APP_GROUP_ID
-              value: "{{ .Values.consumer.groupId }}"
-            - name: APP_TOPIC
-              value: "{{ .Values.consumer.topic }}"
-            - name: APP_PARTITION
-              value: "{{ .Values.consumer.partition }}"
-            - name: APP_POLL_MAX_MESSAGES
-              value: "{{ .Values.consumer.poll.maxMessages }}"
-            - name: APP_POLL_WAIT_MS
-              value: "{{ .Values.consumer.poll.waitMs }}"
           envFrom:
             - configMapRef:
                 name: {{ include "telemetry-pipeline.fullname" . }}-config
             - secretRef:
                 name: {{ include "telemetry-pipeline.fullname" . }}-db
-          resources: {{- toYaml .Values.consumer.resources | nindent 12 }}
+          env:
+            - name: GROUP_ID
+              value: "{{ .Values.consumer.groupId }}"
+            - name: POLL_MAX_MESSAGES
+              value: "{{ .Values.consumer.poll.maxMessages }}"
+            - name: POLL_WAIT_MS
+              value: "{{ .Values.consumer.poll.waitMs }}"
+            {{- range .Values.consumer.extraEnv }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
 {{- end }}

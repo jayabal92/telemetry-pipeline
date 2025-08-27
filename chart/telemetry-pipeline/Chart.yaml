@@ -1,12 +1,9 @@
 apiVersion: v2
 name: telemetry-pipeline
-description: Telemetry pipeline (producer, consumer, API, PostgreSQL)
+description: Telemetry analytics pipeline (producer, consumer, API)
 type: application
 version: 0.1.0
 appVersion: "1.0"
-
-files:
-  - migrations/*.sql
 
 dependencies:
   - name: postgresql

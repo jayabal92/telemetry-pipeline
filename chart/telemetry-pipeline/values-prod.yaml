@@ -1,24 +1,58 @@
-postgresql:
+# values-prod.yaml
+db:
+  host: telemetry-postgres.telemetry.svc.cluster.local
+  port: 5432
+  name: telemetry
+  user: telemetry
+  password: telemetry
+
+migrations:
   enabled: true
-  auth:
-    username: telemetry
-    password: ${PG_PASSWORD}   # use external secrets / helm --set or sealed-secrets
-    database: telemetry
-  primary:
-    persistence:
-      enabled: true
-      size: 200Gi
+  image: bitnami/postgresql:15
+  hookWeight: "5"
+  existingConfigMap: telemetry-pipeline-migrations
 
 producer:
+  enabled: true
+  image:
+    repository: jayabal92/telemetry-producer
+    tag: v1
   csv:
     pvc:
-      size: 50Gi
-      storageClass: gp2  # or your CSI class
+      enabled: true
+      existingClaim: ""
+      size: 10Gi
+      storageClass: gp2
+      accessModes: ["ReadWriteOnce"]
+    filename: "/data/input.csv"
+  topic: "gpu-telemetry"
+  partition: -1
+  readIntervalSeconds: 300
 
 consumer:
+  enabled: true
   replicas: 3
+  image:
+    repository: jayabal92/telemetry-consumer
+    tag: v1
+  groupId: "telemetry-consumers"
+  topic: "gpu-telemetry"
+  partition: -1
+  poll:
+    maxMessages: 500
+    waitMs: 1000
 
 api:
+  enabled: true
   replicas: 3
+  image:
+    repository: jayabal92/telemetry-api
+    tag: v1
   service:
     type: LoadBalancer
+    port: 80
+
+# Queue connection (prod: internal cluster service)
+queue:
+  host: msg-queue.msg-queue.svc.cluster.local
+  port: 9092

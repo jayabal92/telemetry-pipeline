@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 );
 
 -- Indexes for query performance
+CREATE INDEX IF NOT EXISTS ix_telemetry_ts ON gpu_telemetry (ts DESC);
 CREATE INDEX IF NOT EXISTS idx_gpu_ts ON gpu_telemetry (hostname, gpu_id, ts DESC);
-CREATE INDEX IF NOT EXISTS idx_metric_name ON gpu_telemetry (metric_name);
+CREATE INDEX IF NOT EXISTS ix_telemetry_metric_gpu ON gpu_telemetry (metric_name, gpu_id, ts DESC);
 CREATE INDEX IF NOT EXISTS idx_labels_raw ON gpu_telemetry USING gin (labels_raw jsonb_path_ops);

@@ -1,23 +1,68 @@
-postgresql:
+# values-dev.yaml
+db:
+  host: telemetry-postgres.telemetry.svc.cluster.local
+  port: 5432
+  name: telemetry
+  user: telemetry
+  password: telemetry
+
+migrations:
   enabled: true
-  auth:
-    username: telemetry
-    password: telemetry_pwd
-    database: telemetry
-  primary:
-    persistence:
-      enabled: false   # ephemeral for dev
+  image: bitnami/postgresql:15
+  hookWeight: "5"
+  existingConfigMap: telemetry-pipeline-migrations
 
 producer:
+  enabled: true
+  image:
+    repository: jayabal92/telemetry-producer
+    tag: v1
   csv:
     pvc:
       enabled: true
+      existingClaim: ""
       size: 1Gi
-  topic: "gpu-telemetry-dev"
+      storageClass: ""
+      accessModes: ["ReadWriteOnce"]
+    filename: "/data/input.csv"
+  topic: "gpu-telemetry"
+  partition: -1
+  readIntervalSeconds: 60
 
 consumer:
+  enabled: true
   replicas: 1
-  topic: "gpu-telemetry-dev"
+  image:
+    repository: jayabal92/telemetry-consumer
+    tag: v1
+  groupId: "telemetry-consumers"
+  topic: "gpu-telemetry"
+  partition: -1
+  poll:
+    maxMessages: 100
+    waitMs: 500
 
 api:
+  enabled: true
   replicas: 1
+  image:
+    repository: jayabal92/telemetry-api
+    tag: v1
+  service:
+    type: ClusterIP
+    port: 8080
+
+# Queue connection (dev: internal cluster service)
+queue:
+  host: msg-queue.msg-queue.svc.cluster.local
+  port: 9092
+
+
+postgresql:
+  primary:
+    persistence:
+      enabled: false
+  auth:
+    username: telemetry
+    password: telemetry123
+    database: telemetry

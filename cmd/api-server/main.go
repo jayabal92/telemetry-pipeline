@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -21,8 +22,17 @@ import (
 // @description API for querying GPU telemetry stored in TimescaleDB
 // @BasePath /api/v1
 func main() {
+	// e.g. postgres://user:pass@localhost:5432/telemetry?sslmode=disable
+	dsn := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		os.Getenv("APP_DB_USER"),
+		os.Getenv("APP_DB_PASSWORD"),
+		os.Getenv("APP_DB_HOST"),
+		os.Getenv("APP_DB_PORT"),
+		os.Getenv("APP_DB_NAME"),
+	)
+	// log.Printf("DB datasource: %s", dsn)
 	// DB connection
-	dsn := os.Getenv("DB_DSN") // e.g. postgres://user:pass@localhost:5432/telemetry?sslmode=disable
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalf("DB connection failed: %v", err)

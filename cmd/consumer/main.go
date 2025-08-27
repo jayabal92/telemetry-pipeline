@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -23,15 +24,19 @@ const (
 	batchSize   = 500
 	maxMessages = 1000
 	waitMs      = 500
-	groupID     = "telemetry-consumers"
 )
 
 func main() {
 	// === Load Config from ENV ===
-	queueAddr := getEnv("MSG_QUEUE_ADDR", "127.0.0.1:9092")
-	topic := getEnv("MSG_QUEUE_TOPIC", "events")
-	partition := int32(-1)
-	// groupID := getEnv("CONSUMER_GROUP", "telemetry-consumers")
+	queueAddr := getEnv("MQ_SERVER", "127.0.0.1:9092")
+	topic := getEnv("MQ_TOPIC", "events")
+
+	partitionTemp, err := strconv.ParseInt(getEnv("MQ_PARTITION", "0"), 10, 32)
+	if err != nil {
+		log.Fatalf("failed to parse partition value: %v", err)
+	}
+	partition := int32(partitionTemp)
+	groupID := getEnv("CONSUMER_GROUP", "telemetry-consumers")
 
 	dbHost := getEnv("APP_DB_HOST", "localhost")
 	dbPort := getEnv("APP_DB_PORT", "5432")
@@ -75,80 +80,9 @@ func main() {
 	defer cancel()
 	go handleSignals(cancel)
 
-	// offset := int64(15100) // TODO: in real impl, fetch committed offset from DB or msg-queue
-
 	// Get last committed offset
 	offset := loadOffset(ctx, conn, groupID, topic, int(partition))
 
-	// for {
-	// 	select {
-	// 	case <-ctx.Done():
-	// 		log.Println("⏹ Consumer shutting down...")
-	// 		return
-	// 	default:
-	// 		// === Fetch from MQ ===
-	// 		log.Printf("Sending Fetch request: topic: %s partition: %d offset: %d Maxmsgs: %d", topic, partition, offset, maxMessages)
-	// 		resp, err := client.Fetch(ctx, &pb.FetchRequest{
-	// 			Topic:       topic,
-	// 			Partition:   partition,
-	// 			Offset:      offset,
-	// 			MaxMessages: maxMessages,
-	// 			WaitMs:      waitMs,
-	// 		})
-	// 		if err != nil {
-	// 			log.Printf("⚠️ fetch error: %v", err)
-	// 			time.Sleep(time.Second)
-	// 			continue
-	// 		}
-
-	// 		if len(resp.Records) == 0 {
-	// 			log.Println("no records received")
-	// 			time.Sleep(2 * time.Second)
-	// 			continue
-	// 		}
-
-	// 		log.Printf("number of messages received %d", len(resp.Records))
-	// 		// === Insert records into DB ===
-	// 		for _, rec := range resp.Records {
-	// 			// log.Printf("Received offset=%d key=%s value=%s headers=%v",
-	// 			// 	rec.Offset, string(rec.Message.Key), string(rec.Message.Value), rec.Message.Headers)
-	// 			offset = rec.Offset + 1
-	// 			var telemetry model.Telemetry
-	// 			if err := json.Unmarshal(rec.Message.Value, &telemetry); err != nil {
-	// 				log.Printf("json unmarshal failed: %v", err)
-	// 				continue
-	// 			}
-
-	// 			enrichGPUTelemetry(&telemetry)
-
-	// 			_, err = db.ExecContext(ctx, `
-	// 			INSERT INTO gpu_telemetry (
-	// 				ts, metric_name, gpu_id, device, uuid, model_name,
-	// 				hostname, container, pod, namespace, metric_value, labels_raw
-	// 			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-	// 		`,
-	// 				telemetry.Timestamp,
-	// 				telemetry.MetricName,
-	// 				telemetry.GPUId,
-	// 				telemetry.Device,
-	// 				telemetry.UUID,
-	// 				telemetry.ModelName,
-	// 				telemetry.Hostname,
-	// 				telemetry.Container,
-	// 				telemetry.Pod,
-	// 				telemetry.Namespace,
-	// 				telemetry.Value,
-	// 				toJSONB(telemetry.LabelsRaw),
-	// 			)
-	// 			if err != nil {
-	// 				log.Printf("failed inserting telemetry row: %v", err)
-	// 			} else {
-	// 				log.Printf("Inserted record with offset %d", rec.Offset)
-	// 			}
-	// 			offset = rec.Offset + 1
-	// 		}
-	// 	}
-	// }
 	var batch []model.Telemetry
 
 	for {

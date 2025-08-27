@@ -5,23 +5,11 @@ metadata:
   labels:
     {{- include "telemetry-pipeline.labels" . | nindent 4 }}
 data:
-  APP_QUEUE_GRPC: "{{ .Values.queue.grpcAddress }}"
-  APP_DB_HOST: "{{ include "telemetry-pipeline.dbHost" . }}"
-  APP_DB_PORT: "{{ .Values.db.port }}"
-  APP_DB_NAME: "{{ .Values.db.name }}"
-  APP_DB_SSLMODE: "{{ .Values.db.sslmode }}"
-
----
-
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "telemetry-pipeline.fullname" . }}-migrations
-  labels:
-    {{- include "telemetry-pipeline.labels" . | nindent 4 }}
-data:
-{{- $files := .Files.Glob "migrations/*.sql" }}
-{{- range $path, $file := $files }}
-  {{ base $path }}: |
-{{ $file | indent 4 }}
-{{- end }}
+  MQ_HOST: "{{ .Values.queue.host }}"
+  MQ_PORT: "{{ .Values.queue.port }}"
+  MQ_TOPIC: "{{ .Values.queue.topic }}"
+  MQ_PARTITION: "{{ .Values.queue.partition }}"
+  MQ_SERVER: "{{ .Values.queue.host }}:{{ .Values.queue.port }}"
+  APP_DB_HOST: {{ printf "%s-postgresql" .Release.Name }}
+  APP_DB_PORT: "5432"
+  APP_DB_NAME: {{ .Values.postgresql.auth.database | quote }}

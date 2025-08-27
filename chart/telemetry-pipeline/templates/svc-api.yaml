@@ -13,6 +13,6 @@ spec:
       targetPort: 8080
   selector:
     app.kubernetes.io/name: {{ include "telemetry-pipeline.name" . }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: api
+    app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
