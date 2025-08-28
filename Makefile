@@ -5,6 +5,7 @@ REGISTRY    ?= telemetry-pipeline
 VERSION     ?= latest
 NAMESPACE   ?= telemetry
 CHART_NAME  := telemetry-platform
+CHART_DIR   := chart/telemetry-platform
 
 # Images
 MSG_QUEUE_IMG   := $(REGISTRY)/msg-queue:$(VERSION)
@@ -90,16 +91,16 @@ minikube-load:
 .PHONY: deps install upgrade template uninstall
 
 deps:
-	helm dependency update $(CHART_NAME)
+	helm dependency update $(CHART_DIR)
 
 install: deps
-	helm install tp ./$(CHART_NAME) -n $(NAMESPACE) --create-namespace
+	helm install $(RELEASE_NAME) $(CHART_DIR) -n $(NAMESPACE) --create-namespace
 
 upgrade: deps
-	helm upgrade tp ./$(CHART_NAME) -n $(NAMESPACE)
+	helm upgrade --install $(RELEASE_NAME) $(CHART_NAME) -n $(NAMESPACE)
 
 template: deps
-	helm template tp ./$(CHART_NAME) -n $(NAMESPACE)
+	helm template $(RELEASE_NAME) $(CHART_NAME) -n $(NAMESPACE)
 
 uninstall:
-	helm uninstall tp -n $(NAMESPACE)
+	helm uninstall $(RELEASE_NAME) -n $(NAMESPACE)
