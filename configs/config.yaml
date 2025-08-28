@@ -1,0 +1,24 @@
+server:
+  nodeId: broker-0
+  grpcAddr: ":9092"
+  httpAddr: ":8080"
+  grpcAdvertisedAddr: "broker-0.msg-queue-headless.msg-queue.svc.cluster.local:9092"
+
+storage:
+  dataDir: "/var/lib/mq"
+  segmentBytes: 1073741824
+  retentionHours: 168
+  retentionBytes: 0
+etcd:
+  endpoints: ["http://etcd:2379"]
+  username: ""
+  password: ""
+  tls:
+    enable: false
+    caFile: ""
+    certFile: ""
+    keyFile: ""
+replication:
+  rf: 3
+  quorumAcks: 2
+  

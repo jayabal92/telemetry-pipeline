@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package mq;
 
-option go_package = "github.com/testorg/msg-queue/proto;proto";
+option go_package = "telemetry-pipeline/proto;proto";
 
 message Message {
   bytes key = 1;

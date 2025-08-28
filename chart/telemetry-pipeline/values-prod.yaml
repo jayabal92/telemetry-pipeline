@@ -54,5 +54,5 @@ api:
 
 # Queue connection (prod: internal cluster service)
 queue:
-  host: msg-queue.msg-queue.svc.cluster.local
   port: 9092
+  topic: "events"

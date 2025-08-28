@@ -1,0 +1,9 @@
+apiVersion: v2
+name: msg-queue
+version: 0.1.0
+appVersion: "1.0"
+description: Distributed message queue with etcd coordination
+dependencies:
+  - name: etcd
+    version: 12.0.18 # check latest Bitnami chart version
+    repository: https://charts.bitnami.com/bitnami

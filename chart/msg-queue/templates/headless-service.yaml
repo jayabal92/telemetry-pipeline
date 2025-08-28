@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "msg-queue.fullname" . }}-headless
+  labels:
+    app.kubernetes.io/name: {{ include "msg-queue.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: grpc
+      port: 9092
+      targetPort: 9092
+  selector:
+    app.kubernetes.io/name: {{ include "msg-queue.name" . }}

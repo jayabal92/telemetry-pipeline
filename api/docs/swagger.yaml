@@ -9,8 +9,6 @@ definitions:
         type: integer
       hostname:
         type: string
-      model_name:
-        type: string
       uuid:
         type: string
     type: object
@@ -29,6 +27,10 @@ definitions:
       total:
         type: integer
     type: object
+  model.JSONBMap:
+    additionalProperties:
+      type: string
+    type: object
   model.Telemetry:
     description: Telemetry data collected from GPUs
     properties:
@@ -45,9 +47,7 @@ definitions:
       id:
         type: integer
       labels_raw:
-        additionalProperties:
-          type: string
-        type: object
+        $ref: '#/definitions/model.JSONBMap'
       metric_name:
         type: string
       modelName:
@@ -120,25 +120,46 @@ paths:
       summary: List GPUs
       tags:
       - Telemetry
-  /gpus/{id}/metrics/{metric_name}:
+  /gpus/{gpu_id}/metrics:
     get:
       description: Returns metrics data for a given GPU ID and metrics name.
       parameters:
       - description: GPU ID
         in: path
-        name: id
+        name: gpu_id
         required: true
         type: string
-      - description: Metric Name
-        in: path
-        name: metric_name
+      - description: Metric name
+        enum:
+        - DCGM_FI_DEV_DEC_UTIL
+        - DCGM_FI_DEV_ENC_UTIL
+        - DCGM_FI_DEV_FB_FREE
+        - DCGM_FI_DEV_FB_USED
+        - DCGM_FI_DEV_GPU_TEMP
+        - DCGM_FI_DEV_GPU_UTIL
+        - DCGM_FI_DEV_MEM_CLOCK
+        - DCGM_FI_DEV_MEM_COPY_UTIL
+        - DCGM_FI_DEV_POWER_USAGE
+        - DCGM_FI_DEV_SM_CLOCK
+        in: query
+        name: metric
         required: true
         type: string
-      - description: Start time (ISO8601)
+      - description: Aggregation function
+        enum:
+        - min
+        - max
+        - avg
+        - sum
+        in: query
+        name: aggregation
+        required: true
+        type: string
+      - description: 'Start time (sample: 2025-08-28T08:46:58Z)'
         in: query
         name: start_time
         type: string
-      - description: End time (ISO8601)
+      - description: 'End time (sample: 2025-08-28T09:46:58Z)'
         in: query
         name: end_time
         type: string
@@ -162,20 +183,20 @@ paths:
       summary: Get metrics for a GPU
       tags:
       - Telemetry
-  /gpus/{id}/telemetry:
+  /gpus/{gpu_id}/telemetry:
     get:
       description: Returns telemetry data for a given GPU ID.
       parameters:
       - description: GPU ID
         in: path
-        name: id
+        name: gpu_id
         required: true
         type: string
-      - description: Start time (ISO8601)
+      - description: 'Start time (sample: 2025-08-28T08:46:58Z)'
         in: query
         name: start_time
         type: string
-      - description: End time (ISO8601)
+      - description: 'End time (sample: 2025-08-28T09:46:58Z)'
         in: query
         name: end_time
         type: string

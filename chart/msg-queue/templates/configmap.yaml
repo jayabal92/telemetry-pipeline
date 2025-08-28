@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "msg-queue.fullname" . }}-config
+  labels:
+    app.kubernetes.io/name: {{ include "msg-queue.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  config.yaml: |
+    etcd:
+      endpoints:
+        - http://{{ include "msg-queue.etcdHeadlessService" . }}.{{ .Release.Namespace }}.svc.{{ include "msg-queue.clusterDomain" . }}:2379
+      username: {{ default "" .Values.etcd.username | quote }}
+      password: {{ default "" .Values.etcd.password | quote }}
+      tls:
+        enabled: {{ default false .Values.etcd.tls.enabled }}
+    server:
+      grpcAddr: {{ default "0.0.0.0:9092" .Values.server.grpcAddr | quote }}
+      httpAddr: {{ default "0.0.0.0:8080" .Values.server.httpAddr | quote }}
+      nodeId: $(POD_NAME)
+      grpcAdvertisedAddr: "$(POD_NAME).{{ include "msg-queue.fullname" . }}-headless.{{ .Release.Namespace }}.svc.cluster.local:9092"
+    replication:
+      rf: {{ default 3 .Values.replication.rf }}
+      quorumAcks: {{ default 2 .Values.replication.quorumAcks }}
+    storage:
+      dataDir: {{ default "/var/lib/msg-queue" .Values.storage.dataDir | quote }}
+      segmentBytes: {{ default 134217728 .Values.storage.segmentBytes }}

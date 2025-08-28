@@ -1,0 +1,20 @@
+server:
+  nodeId: "node-a"
+  grpcAddr: "127.0.0.1:9092"
+  httpAddr: "127.0.0.1:8080"
+  grpcAdvertisedAddr: "127.0.0.1:9092"
+
+storage:
+  dataDir: "./data/node-a"
+  segmentBytes: 134217728 # 128MiB
+
+replication:
+  rf: 3
+  quorumAcks: 2 # for RF=3, require 2 acks (leader+1)
+
+etcd:
+  endpoints: ["127.0.0.1:2379"]
+  username: ""
+  password: ""
+  tls:
+    enabled: false

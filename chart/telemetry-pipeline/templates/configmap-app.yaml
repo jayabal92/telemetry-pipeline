@@ -5,11 +5,11 @@ metadata:
   labels:
     {{- include "telemetry-pipeline.labels" . | nindent 4 }}
 data:
-  MQ_HOST: "{{ .Values.queue.host }}"
+  MQ_HOST: "{{ include "telemetry-platform.msgQueueFullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
   MQ_PORT: "{{ .Values.queue.port }}"
   MQ_TOPIC: "{{ .Values.queue.topic }}"
   MQ_PARTITION: "{{ .Values.queue.partition }}"
-  MQ_SERVER: "{{ .Values.queue.host }}:{{ .Values.queue.port }}"
+  MQ_SERVER: "{{ include "telemetry-platform.msgQueueFullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.queue.port }}"
   APP_DB_HOST: {{ printf "%s-postgresql" .Release.Name }}
   APP_DB_PORT: "5432"
   APP_DB_NAME: {{ .Values.postgresql.auth.database | quote }}

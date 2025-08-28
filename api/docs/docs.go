@@ -69,7 +69,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gpus/{id}/metrics/{metric_name}": {
+        "/gpus/{gpu_id}/metrics": {
             "get": {
                 "description": "Returns metrics data for a given GPU ID and metrics name.",
                 "produces": [
@@ -83,26 +83,51 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "GPU ID",
-                        "name": "id",
+                        "name": "gpu_id",
                         "in": "path",
                         "required": true
                     },
                     {
+                        "enum": [
+                            "DCGM_FI_DEV_DEC_UTIL",
+                            "DCGM_FI_DEV_ENC_UTIL",
+                            "DCGM_FI_DEV_FB_FREE",
+                            "DCGM_FI_DEV_FB_USED",
+                            "DCGM_FI_DEV_GPU_TEMP",
+                            "DCGM_FI_DEV_GPU_UTIL",
+                            "DCGM_FI_DEV_MEM_CLOCK",
+                            "DCGM_FI_DEV_MEM_COPY_UTIL",
+                            "DCGM_FI_DEV_POWER_USAGE",
+                            "DCGM_FI_DEV_SM_CLOCK"
+                        ],
                         "type": "string",
-                        "description": "Metric Name",
-                        "name": "metric_name",
-                        "in": "path",
+                        "description": "Metric name",
+                        "name": "metric",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "min",
+                            "max",
+                            "avg",
+                            "sum"
+                        ],
+                        "type": "string",
+                        "description": "Aggregation function",
+                        "name": "aggregation",
+                        "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Start time (ISO8601)",
+                        "description": "Start time (sample: 2025-08-28T08:46:58Z)",
                         "name": "start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "End time (ISO8601)",
+                        "description": "End time (sample: 2025-08-28T09:46:58Z)",
                         "name": "end_time",
                         "in": "query"
                     },
@@ -131,7 +156,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/gpus/{id}/telemetry": {
+        "/gpus/{gpu_id}/telemetry": {
             "get": {
                 "description": "Returns telemetry data for a given GPU ID.",
                 "produces": [
@@ -145,19 +170,19 @@ const docTemplate = `{
                     {
                         "type": "string",
                         "description": "GPU ID",
-                        "name": "id",
+                        "name": "gpu_id",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Start time (ISO8601)",
+                        "description": "Start time (sample: 2025-08-28T08:46:58Z)",
                         "name": "start_time",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "End time (ISO8601)",
+                        "description": "End time (sample: 2025-08-28T09:46:58Z)",
                         "name": "end_time",
                         "in": "query"
                     },
@@ -201,9 +226,6 @@ const docTemplate = `{
                 "hostname": {
                     "type": "string"
                 },
-                "model_name": {
-                    "type": "string"
-                },
                 "uuid": {
                     "type": "string"
                 }
@@ -232,6 +254,12 @@ const docTemplate = `{
                 }
             }
         },
+        "model.JSONBMap": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
         "model.Telemetry": {
             "description": "Telemetry data collected from GPUs",
             "type": "object",
@@ -255,10 +283,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "labels_raw": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "$ref": "#/definitions/model.JSONBMap"
                 },
                 "metric_name": {
                     "type": "string"

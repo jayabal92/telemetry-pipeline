@@ -1,0 +1,38 @@
+# ----------------------------------------
+# Build stage
+# ----------------------------------------
+FROM golang:1.23-alpine AS builder
+
+# Install tools
+RUN apk add --no-cache git make
+
+WORKDIR /app
+
+# Copy go.mod and go.sum first (better caching)
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy rest of the source
+COPY . .
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build -o msg-queue ./cmd/msg-queue/main.go
+
+
+
+# ----------------------------------------
+# Runtime stage
+# ----------------------------------------
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+
+# Copy binary only
+COPY --from=builder /app/msg-queue /usr/local/bin/msg-queue
+COPY configs /app/configs
+
+# Run the server
+ENTRYPOINT ["/usr/local/bin/msg-queue"]
+CMD ["--config", "/app/configs/config.yaml"]

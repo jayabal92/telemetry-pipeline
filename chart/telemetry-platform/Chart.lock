@@ -1,0 +1,9 @@
+dependencies:
+- name: msg-queue
+  repository: file://../msg-queue
+  version: 0.1.0
+- name: telemetry-pipeline
+  repository: file://../telemetry-pipeline
+  version: 0.1.0
+digest: sha256:df2903fbb9cb8c6bd66ca373cb26d3d9eff4fc1bd3ee1c2b04726fe960cb4cef
+generated: "2025-08-28T08:48:27.044178+05:30"

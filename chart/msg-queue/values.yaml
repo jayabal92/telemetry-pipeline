@@ -1,0 +1,61 @@
+replicaCount: 3
+image:
+  repository: jayabal92/msg-queue
+  tag: v4-test
+  pullPolicy: IfNotPresent
+serviceAccount:
+  create: true
+  name: ""
+service:
+  type: ClusterIP
+  port: 9092
+pdb:
+  enabled: true
+  minAvailable: 2
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# storage
+persistence:
+  enabled: true
+  size: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClass: ""
+
+server:
+  # Unique nodeId per replica — injected via StatefulSet index
+  nodeId: "$(POD_NAME)"  
+  grpcAddr: "0.0.0.0:9092"   # listen on all interfaces
+  httpAddr: "0.0.0.0:8080"
+  grpcAdvertisedAddr: "$(POD_NAME).msg-queue-headless.msg-queue.svc.cluster.local:9092"
+
+replication:
+  quorumAcks: 2
+  rf: 3
+
+storage:
+  segmentBytes: 134217728
+
+etcd:
+  replicaCount: 3
+  tls:
+    enabled: false
+  auth:
+    rbac:
+      create: false
+      allowNoneAuthentication: true
+      enabled: false
+    token:
+      enabled: false
+    rootPassword: ""
+  persistence:
+    enabled: true
+    size: 2Gi
+# extra env
+extraEnv: []
+# e.g.
+# extraEnv:
+#   - name: GODEBUG
+#     value: madvdontneed=1

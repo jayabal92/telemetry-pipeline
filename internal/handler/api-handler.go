@@ -56,21 +56,22 @@ func (h *GPUHandler) ListGPUs(w http.ResponseWriter, r *http.Request) {
 // @Description Returns telemetry data for a given GPU ID.
 // @Tags Telemetry
 // @Produce json
-// @Param id path string true "GPU ID"
-// @Param start_time query string false "Start time (ISO8601)"
-// @Param end_time query string false "End time (ISO8601)"
+// @Param gpu_id path string true "GPU ID"
+// @Param start_time query string false "Start time (sample: 2025-08-28T08:46:58Z)"
+// @Param end_time query string false "End time (sample: 2025-08-28T09:46:58Z)"
 // @Param limit query int false "Limit number of records" default(10)
 // @Param offset query int false "Offset for pagination" default(0)
 // @Success 200 {object} model.TelemetryResponse
-// @Router /gpus/{id}/telemetry [get]
+// @Router /gpus/{gpu_id}/telemetry [get]
 func (h *GPUHandler) GetGPUTelemetry(w http.ResponseWriter, r *http.Request) {
-	// GET /api/v1/gpus/{id}/telemetry?start_time=...&end_time=...&limit=...&offset=...
 	log.Printf("Got GPU Telemetry request....")
 	vars := mux.Vars(r)
-	idStr := vars["id"]
-	gpuID, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "invalid GPU id", http.StatusBadRequest)
+	rawGpuId := vars["gpu_id"]
+	log.Printf("Got GPU Metrics request.... gpuid: %s", rawGpuId)
+
+	ok, device, hostname := model.IsValidUUID(rawGpuId)
+	if !ok {
+		http.Error(w, fmt.Sprintf("invalid gpu id: %s", rawGpuId), http.StatusBadRequest)
 		return
 	}
 
@@ -83,7 +84,7 @@ func (h *GPUHandler) GetGPUTelemetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	telemetry, total, err := h.service.GetGPUTelemetry(r.Context(), gpuID, startTime, endTime, limit, offset)
+	telemetry, total, err := h.service.GetGPUTelemetry(r.Context(), device, hostname, startTime, endTime, limit, offset)
 	if err != nil {
 		log.Printf("Error in GPU telemetry request: %v", err)
 		http.Error(w, err.Error(), 500)
@@ -104,24 +105,35 @@ func (h *GPUHandler) GetGPUTelemetry(w http.ResponseWriter, r *http.Request) {
 // @Description Returns metrics data for a given GPU ID and metrics name.
 // @Tags Telemetry
 // @Produce json
-// @Param id path string true "GPU ID"
-// @Param metric_name path string true "Metric Name"
-// @Param start_time query string false "Start time (ISO8601)"
-// @Param end_time query string false "End time (ISO8601)"
+// @Param gpu_id path string true "GPU ID"
+// @Param metric query model.MetricName true "Metric name"
+// @Param aggregation query model.Aggregation true "Aggregation function"
+// @Param start_time query string false "Start time (sample: 2025-08-28T08:46:58Z)"
+// @Param end_time query string false "End time (sample: 2025-08-28T09:46:58Z)"
 // @Param limit query int false "Limit number of records" default(10)
 // @Param offset query int false "Offset for pagination" default(0)
 // @Success 200 {object} model.TelemetryResponse
-// @Router /gpus/{id}/metrics/{metric_name} [get]
+// @Router /gpus/{gpu_id}/metrics [get]
 func (h *GPUHandler) GetGPUMetrics(w http.ResponseWriter, r *http.Request) {
-	// GET /api/v1/gpus/{id}/metrics/{metric_name}?start_time=...&end_time=...&limit=...&offset=...
 	vars := mux.Vars(r)
-	idStr := vars["id"]
-	metricName := vars["metric_name"]
-	log.Printf("Got GPU Metrics request.... metrics: %s gpuid: %s", metricName, idStr)
+	rawGpuId := vars["gpu_id"]
+	log.Printf("Got GPU Metrics request.... gpuid: %s", rawGpuId)
 
-	gpuID, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "invalid GPU id", http.StatusBadRequest)
+	ok, gpuId, hostname := model.IsValidUUID(rawGpuId)
+	if !ok {
+		http.Error(w, fmt.Sprintf("invalid gpu id: %s", rawGpuId), http.StatusBadRequest)
+		return
+	}
+
+	q := r.URL.Query()
+	metricName := model.MetricName(q.Get("metric"))
+	aggregation := model.Aggregation(q.Get("aggregation"))
+	if !metricName.IsValid() {
+		http.Error(w, fmt.Sprintf("invalid metric: %s", metricName), http.StatusBadRequest)
+		return
+	}
+	if !aggregation.IsValid() {
+		http.Error(w, fmt.Sprintf("invalid aggregation: %s", aggregation), http.StatusBadRequest)
 		return
 	}
 
@@ -133,21 +145,15 @@ func (h *GPUHandler) GetGPUMetrics(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	metrics, total, err := h.service.GetGPUMetrics(r.Context(), gpuID, metricName, startTime, endTime, limit, offset)
+
+	metrics, err := h.service.GetGPUMetrics(r.Context(), gpuId, hostname, metricName, aggregation, startTime, endTime, limit, offset)
 	if err != nil {
 		log.Printf("Error in GPU metrics request: %v", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	resp := model.TelemetryResponse{
-		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
-		Count:   len(metrics),
-		Results: metrics,
-	}
-	writeJSON(w, resp)
+	writeJSON(w, metrics)
 }
 
 // Utility

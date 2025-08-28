@@ -112,6 +112,7 @@ func (p *Producer) Produce(topic string, partition int, msgs []*pb.Message) erro
 		}
 	}
 
+	log.Printf("Produce client address: %s", addr)
 	client, err := p.getClient(ctx, addr)
 	if err != nil {
 		return fmt.Errorf("dial leader %s failed: %w", addr, err)
@@ -130,7 +131,7 @@ func (p *Producer) Produce(topic string, partition int, msgs []*pb.Message) erro
 			topic, partition, addr, len(resp.Offsets), resp.Offsets[len(resp.Offsets)-1])
 		return nil
 	}
-
+	log.Printf("error in produce: %v", err)
 	// handle not leader case
 	if strings.Contains(err.Error(), "not leader") {
 		log.Printf("produce redirect: %v → refreshing metadata", err)

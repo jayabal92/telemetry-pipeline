@@ -18,4 +18,3 @@ FROM alpine:3.20
 WORKDIR /app
 COPY --from=builder /bin/producer /usr/local/bin/producer
 ENTRYPOINT ["/usr/local/bin/producer"]
-    

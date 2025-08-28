@@ -1,0 +1,48 @@
+# values_dev.yaml
+
+replicaCount: 1
+
+image:
+  repository: jayabal92/msg-queue
+  tag: v1-test
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 9092
+
+persistence:
+  enabled: true
+  size: 5Gi
+  accessModes:
+    - ReadWriteOnce
+
+server:
+  # Unique nodeId per replica — injected via StatefulSet index
+  nodeId: "$(POD_NAME)"  
+  grpcAddr: "0.0.0.0:9092"   # listen on all interfaces
+  httpAddr: "0.0.0.0:8080"
+  grpcAdvertisedAddr: "$(POD_NAME).msg-queue-headless.msg-queue.svc.cluster.local:9092"
+
+replication:
+  quorumAcks: 1
+  rf: 1
+
+storage:
+  segmentBytes: 134217728
+
+# 🔹 Correct Bitnami etcd overrides (matches helm show values)
+etcd:
+  replicaCount: 1
+  auth:
+    rbac:
+      create: false
+      enabled: false
+      allowNoneAuthentication: true   # <-- forces ALLOW_NONE_AUTHENTICATION=yes
+    token:
+      enabled: false
+    rootPassword: ""
+    
+  persistence:
+    enabled: true
+    size: 200Gi

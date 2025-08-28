@@ -7,8 +7,8 @@ image:
 producer:
   enabled: true
   image:
-    repository: jayabal92/telemetry-producer
-    tag: v1
+    repository: telemetry-producer
+    tag: v1-test
   csv:
     pvc:
       enabled: true
@@ -23,8 +23,8 @@ consumer:
   enabled: true
   replicas: 1
   image:
-    repository: jayabal92/telemetry-consumer
-    tag: v1
+    repository: telemetry-consumer
+    tag: v3-test
   groupId: "telemetry-consumers"
   topic: "gpu-telemetry"
   partition: -1
@@ -41,8 +41,8 @@ api:
   enabled: true
   replicas: 1
   image:
-    repository: jayabal92/telemetry-api
-    tag: v1
+    repository: telemetry-apiserver
+    tag: v2-test
   service:
     type: ClusterIP
     port: 8080
@@ -53,8 +53,8 @@ api:
   affinity: {}
 
 queue:
-  host: msg-queue.msg-queue.svc.cluster.local
   port: 9092
+  topic: "events"
 
 
 # DB connection details (used by consumer + API)

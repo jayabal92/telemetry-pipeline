@@ -49,8 +49,8 @@ func main() {
 
 	// Register handlers
 	r.HandleFunc("/api/v1/gpus", h.ListGPUs).Methods("GET")
-	r.HandleFunc("/api/v1/gpus/{id:[0-9]+}/telemetry", h.GetGPUTelemetry).Methods("GET")
-	r.HandleFunc("/api/v1/gpus/{id:[0-9]+}/metrics/{metric_name}", h.GetGPUMetrics).Methods("GET")
+	r.HandleFunc("/api/v1/gpus/{gpu_id}/telemetry", h.GetGPUTelemetry).Methods("GET")
+	r.HandleFunc("/api/v1/gpus/{gpu_id}/metrics", h.GetGPUMetrics).Methods("GET")
 	r.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
 	addr := ":8080"

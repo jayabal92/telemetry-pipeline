@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "msg-queue.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "msg-queue.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: grpc
+      port: {{ .Values.service.port }}
+      targetPort: 9092
+  selector:
+    app.kubernetes.io/name: {{ include "msg-queue.name" . }}

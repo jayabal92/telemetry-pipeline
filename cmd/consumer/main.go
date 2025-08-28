@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -47,16 +46,6 @@ func main() {
 	// === Connect to DB ===
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
-	db, err := sql.Open("postgres", psqlInfo)
-	if err != nil {
-		log.Fatalf("failed to connect to Postgres: %v", err)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		log.Fatalf("DB unreachable: %v", err)
-	}
-	log.Println("Connected to PostgreSQL")
 
 	// === Connect to DB (pgx) ===
 	conn, err := pgx.Connect(context.Background(), psqlInfo)
@@ -67,6 +56,7 @@ func main() {
 	log.Println("Connected to PostgreSQL via pgx")
 
 	// === Connect to gRPC MQ ===
+	log.Printf("connecting to msg queue: %s", queueAddr)
 	grpcConn, err := grpc.NewClient(queueAddr, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("failed to dial msg-queue: %v", err)
@@ -110,7 +100,7 @@ func main() {
 
 			if len(resp.Records) == 0 {
 				log.Println("no records received")
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(1 * time.Second)
 				continue
 			}
 

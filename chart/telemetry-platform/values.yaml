@@ -1,0 +1,38 @@
+global:
+  db:
+    host: tp-postgresql.telemetry.svc.cluster.local
+    port: 5432
+    user: telemetry
+    password: telemetry
+    name: telemetry
+
+  queue:
+    port: 9092
+
+
+msg-queue:
+  enabled: true
+  replicas: 3
+  etcd:
+    replicas: 3
+  service:
+    type: ClusterIP
+  etcdHeadlessService: 
+
+
+telemetry-pipeline:
+  enabled: true
+  producer:
+    enabled: true
+    csv:
+      pvc:
+        enabled: true
+  consumer:
+    enabled: true
+  api:
+    enabled: true
+  postgresql:
+    auth:
+      username: telemetry
+      password: telemetry
+      database: telemetry

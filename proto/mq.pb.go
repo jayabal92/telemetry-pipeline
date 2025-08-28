@@ -1318,7 +1318,7 @@ const file_proto_mq_proto_rawDesc = "" +
 	"\fFetchOffsets\x12\x17.mq.FetchOffsetsRequest\x1a\x18.mq.FetchOffsetsResponse2C\n" +
 	"\n" +
 	"Replicator\x125\n" +
-	"\x06Append\x12\x14.mq.ReplicateRequest\x1a\x15.mq.ReplicateResponseB*Z(github.com/testorg/msg-queue/proto;protob\x06proto3"
+	"\x06Append\x12\x14.mq.ReplicateRequest\x1a\x15.mq.ReplicateResponseB Z\x1etelemetry-pipeline/proto;protob\x06proto3"
 
 var (
 	file_proto_mq_proto_rawDescOnce sync.Once

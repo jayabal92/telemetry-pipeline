@@ -1,0 +1,17 @@
+{{- $name := include "msg-queue.fullname" . -}}
+1. Get the Service:
+
+   kubectl get svc {{ $name }} -n {{ .Release.Namespace }}
+
+2. Port-forward for local testing:
+
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ $name }} 9092:9092
+
+3. Example fetch via grpcurl:
+
+   grpcurl -plaintext -d '{"topic":"events","partition":0,"offset":0,"maxMessages":10}' \
+     127.0.0.1:9092 mq.MQ/Fetch
+
+4. Configure etcd endpoints via values.yaml under `.config.etcd.endpoints`.
+
+5. Persistent data path: /var/lib/msg-queue (PVC: data).
