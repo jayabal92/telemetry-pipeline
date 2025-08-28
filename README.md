@@ -1,77 +1,77 @@
-Telemetry Pipeline
+**Telemetry Pipeline**
 
-Overview
+**Overview**
 
 Telemetry Pipeline is a distributed system for collecting, transporting, and storing GPU telemetry metrics.
 It mimics a Kafka-like message queue with producers, consumers, and an internal replication model.
 Metrics flow from producer → message queue → consumer → PostgreSQL/TimescaleDB, with an API server for queries.
 
-Architecture:
+**Architecture:**
 
 ![alt text](image.png)
 
 
 
 
-Components:
+**Components:**
 
-Producer:
+**Producer:**
 - Periodically Reads telemetry data from csv file
 - Batches the records/messages 
 - Pushe/Produce telemetry batches to Message Queue
 
-Message Queue:
+**Message Queue:**
     The Message Queue is the heart of the telemetry pipeline.
     It is inspired by Kafka and implements a distributed log with replication, leader election, and offset tracking.
 
-Design
+**Design**
 * Partitioned Log
-    Each topic is split into partitions, which are append-only logs.
-    A partition is ordered, durable, and persisted to disk via segment files + indexes.
-    Offsets are monotonically increasing and uniquely identify each message.
+    - Each topic is split into partitions, which are append-only logs.
+    - A partition is ordered, durable, and persisted to disk via segment files + indexes.
+    - Offsets are monotonically increasing and uniquely identify each message.
 
 * Leaders and Followers
-    Each partition has a leader broker that accepts writes from producers.
-    Followers replicate data from the leader to ensure durability and fault tolerance.
-    If a leader fails, a new leader is elected from the in-sync replicas (ISR) using etcd.
+    - Each partition has a leader broker that accepts writes from producers.
+    - Followers replicate data from the leader to ensure durability and fault tolerance.
+    - If a leader fails, a new leader is elected from the in-sync replicas (ISR) using etcd.
 
 * High Watermark
-    Tracks the highest offset that is fully replicated to all ISR nodes.
-    Consumers only read messages up to the high watermark, ensuring they only see committed data.
+    - Tracks the highest offset that is fully replicated to all ISR nodes.
+    - Consumers only read messages up to the high watermark, ensuring they only see committed data.
 
 * Replication Protocol
-    Implemented with a Replicator gRPC service.
-    Followers fetch batches from leaders and append to their local logs.
-    Keeps replicas strongly consistent with leaders.
+    - Implemented with a Replicator gRPC service.
+    - Followers fetch batches from leaders and append to their local logs.
+    - Keeps replicas strongly consistent with leaders.
 
 * Metadata Management
-    etcd stores:
-        Broker registrations (brokerID → host:port)
-        Topic → Partition → Leader/ISR mapping
-    The Metadata RPC allows clients to discover the leader for any topic/partition dynamically.
+    - etcd stores:
+        * Broker registrations (brokerID → host:port)
+        * Topic → Partition → Leader/ISR mapping
+    - The Metadata RPC allows clients to discover the leader for any topic/partition dynamically.
 
 * Durability and Recovery
-    Messages are fsynced and indexed to disk.
-    On startup, segment/index pairs are validated and corrupted entries truncated.
-    Ensures no data loss even after crashes.
+    - Messages are fsynced and indexed to disk.
+    - On startup, segment/index pairs are validated and corrupted entries truncated.
+    - Ensures no data loss even after crashes.
 
-Features
+**Features**
 - Append-only Log Storage
-    Efficient disk writes with sequential appends and segment rolling.
+    * Efficient disk writes with sequential appends and segment rolling.
 - Leader-based Replication
-    Guarantees at-least-once delivery with in-sync replicas.
+    * Guarantees at-least-once delivery with in-sync replicas.
 - Offset Management
-    Consumers track offsets (committed to DB) for exactly-once or at-least-once semantics.
+    * Consumers track offsets (committed to DB) for exactly-once or at-least-once semantics.
 - High Throughput
-    Batching (both on producer & consumer side) reduces RPC and DB overhead.
+    * Batching (both on producer & consumer side) reduces RPC and DB overhead.
 - Fault Tolerance
-    Brokers register in etcd with leases (heartbeats).
-    Failures automatically trigger leader re-election.
-    Surviving replicas continue serving.
+    * Brokers register in etcd with leases (heartbeats).
+    * Failures automatically trigger leader re-election.
+    * Surviving replicas continue serving.
 - Horizontal Scalability
-    Topics can be partitioned across brokers, distributing load.
+    * Topics can be partitioned across brokers, distributing load.
 
-Advantages
+**Advantages**
 - Durability: Messages are never lost once acknowledged by the leader.
 - Scalability: Can scale producers, consumers, and brokers independently.
 - Decoupling: Producers and consumers don’t need to know about each other.
@@ -80,7 +80,8 @@ Advantages
 - Efficient storage: Log segments and indexes allow constant-time seek + sequential reads/writes.
 - Kubernetes-native: Brokers run as statefulsets with etcd for coordination.
 
-Produce Flow (Writing Messages)
+**Produce Flow (Writing Messages)**
+    
 The Produce RPC lets a producer send one or more messages to the cluster.
 
 Steps:
@@ -119,8 +120,9 @@ Guarantees:
 - Durability: Message is safe once acked.
 - Ordering: Messages in a partition are always delivered in the same order they were produced.
 
-Fetch Flow (Reading Messages)
-    The Fetch RPC lets consumers read committed messages from a partition.
+**Fetch Flow (Reading Messages)**
+
+The Fetch RPC lets consumers read committed messages from a partition.
 
 Steps:
 1. Consumer → Metadata Lookup
@@ -128,10 +130,10 @@ Steps:
 
 2. Fetch RPC → Leader Broker
     * Consumer sends a FetchRequest with:
-        topic
-        partition
-        starting offset
-        max_messages, max_bytes, wait_ms (for batching / long polling).
+        - topic
+        - partition
+        - starting offset
+        - max_messages, max_bytes, wait_ms (for batching / long polling).
 
 3. Leader Serves from Log
     * Leader reads from its partition log segments starting at offset.
@@ -140,8 +142,8 @@ Steps:
 
 4. Response to Consumer
     * Leader returns FetchResponse:
-        records: list of messages with their offsets.
-        high_watermark: so consumer knows progress.
+        - records: list of messages with their offsets.
+        - high_watermark: so consumer knows progress.
     * Consumer updates its internal offset pointer.
 
 5. Offset Commit (optional)
@@ -162,54 +164,59 @@ Example Timeline
 * Consumer with offset=0 fetches → receives [M1,M2,M3].
 * Consumer commits offset=3 (next to read).
 
-Consumer:
+**Consumer:**
 - Fetches messages from message queue via FetchRequest - topic, partition, offset, max_msgs
 - Process/Enrich the GPU telemetry
 - Uses Bulk insertion method to efficiently handle more load/TPS and updates the successfully processed offset value to consumer_offsets table
 - If consumer restarts, read the offset value from consumer_offsets table and starts fetch from that offset to ensure no duplicate record in DB
 
-API Server:
+**API Server:**
 - Exposes REST Endpoints on port 8080
 - Proper input validation (Enum-based validation)
 - Pagination support (handle large response) was implemented for all APIs.
 - Generates swaager/OpenAPI Spec and Exposes Swagger Documentation (/swagger/index.html)
 
-API Endpoints:
+*API Endpoints:*
 1. List GPUs - GET /api/v1/gpus?limit=10&offset=0
-    returns list of GPU seen in telemetry with uuid (device + hostname)
+    * returns list of GPU seen in telemetry with uuid (device + hostname)
 
 2. GPU Metrics - GET /api/v1/gpus/{gpu_id}/metrics
-    Query Param: 
-        start_time, end_time: Time window filtering
-        Metric_name: Enum (DCGM_FI_DEV_DEC_UTIL, DCGM_FI_DEV_ENC_UTIL, DCGM_FI_DEV_FB_FREE .....)
-        aggregation: Enum (min, max, avg, sum)
-        Pagination (limit, offset)
-    Returns the aggregate metric for the given GPU
+    * Query Param: 
+        - start_time, end_time: Time window filtering
+        - Metric_name: Enum (DCGM_FI_DEV_DEC_UTIL, DCGM_FI_DEV_ENC_UTIL, DCGM_FI_DEV_FB_FREE .....)
+        - aggregation: Enum (min, max, avg, sum)
+        - Pagination (limit, offset)
+    * Returns the aggregate metric for the given GPU
 
 3. Fetch GPU Telemetry - GET /api/v1/gpus/{gpu_id}/telemetry
-    Returns time-series telemetry data for a given GPU
+    * Returns time-series telemetry data for a given GPU
 
 4. OpenAPI Spec:
-    make openapi -> auto generate openapi spec for the api
-    Exposed at /swagger/index.html
+    * make openapi -> auto generate openapi spec for the api
+    * Exposed at /swagger/index.html
 
-Helm chart:
-    → K8s friendly, Comes with Helm chart and health checks
+
+**Helm chart:**
+
+    - K8s friendly, Comes with Helm chart and health checks
     - easy to install (umbrella chart model)
     - easy to upgrade version
     - easy configuartion support for dev and prod environment
-    - horizontal scalablility support with replicas
+    - Horizontal scalablility support with replicas
 
 
-Testing:
+**Testing:**
+```
     cd chart
     helm dependency update telemetry-platform
     helm upgrade --install tp chart/telemetry-platform -n telemetry --create-namespace
+```
 
-Cleanup:
-    helm uninstall tp
+**Cleanup:**
 
-For local testing:
+    ```make uninstall```
+
+**For local testing:**
     Run Postgres DB locally
     ```
         docker run --name pg -e POSTGRES_PASSWORD=pass -e POSTGRES_USER=user -e POSTGRES_DB=telemetry -p 5432:5432 -d postgres:15
@@ -248,7 +255,7 @@ WARNING: There are "resources" sections in the chart not set. Using "resourcesPr
 +info https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 
 
-To run etcd locally
+*To run etcd locally*
 
-etcd --listen-client-urls=http://127.0.0.1:2379 \
-     --advertise-client-urls=http://127.0.0.1:2379
+    etcd --listen-client-urls=http://127.0.0.1:2379 \
+        --advertise-client-urls=http://127.0.0.1:2379
