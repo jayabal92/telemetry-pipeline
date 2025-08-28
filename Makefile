@@ -46,6 +46,16 @@ run-consumer:
 run-apiserver:
 	go run cmd/api-server/main.go
 
+.PHONY: test
+test:
+	@echo ">>> Running unit tests..."
+	@go test ./... -coverprofile=coverage.out -v
+	@echo ">>> Coverage report:"
+	@go tool cover -func=coverage.out | tail -n 10
+
+cover:
+	@go tool cover -html=coverage.out
+
 # -------------------------------------------------------------------
 # Docker builds
 # -------------------------------------------------------------------

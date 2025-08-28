@@ -207,14 +207,21 @@ Example Timeline
 
 **Testing:**
 ```
-    cd chart
-    helm dependency update telemetry-platform
-    helm upgrade --install tp chart/telemetry-platform -n telemetry --create-namespace
+cd chart
+helm dependency update telemetry-platform
+helm upgrade --install tp chart/telemetry-platform -n telemetry --create-namespace
+
+# Create Topic
+% grpcurl -plaintext -d '{"topic":"events","partitions":3,"rf":3}' \
+  127.0.0.1:9092 mq.MQ/CreateTopic
+
+# copy CSV file to producer pod (unable to create configmap, due to max size issue 1MB)
+% kubectl cp data/dcgm_metrics_20250718_134233.csv tp-telemetry-pipeline-producer-696dd74bc8-cc7p5:/data/input.csv -n telemetry
 ```
 
 **Cleanup:**
 
-    ```make uninstall```
+    helm uninstall tp -n telemetry
 
 **For local testing:**
     Run Postgres DB locally

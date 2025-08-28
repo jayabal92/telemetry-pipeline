@@ -17,6 +17,11 @@ import (
 	pb "telemetry-pipeline/proto"
 )
 
+type ProducerIface interface {
+	Produce(topic string, partition int, msgs []*pb.Message) error
+	Close()
+}
+
 // global atomic flag
 var running int32
 
@@ -69,7 +74,7 @@ func main() {
 	}
 }
 
-func produceFromCSV(p *producer.Producer, csvPath, topic string, partition, batchSize int) error {
+func produceFromCSV(p ProducerIface, csvPath, topic string, partition, batchSize int) error {
 	f, err := os.Open(csvPath)
 	if err != nil {
 		return fmt.Errorf("failed to open csv file: %w", err)
@@ -134,6 +139,7 @@ func produceFromCSV(p *producer.Producer, csvPath, topic string, partition, batc
 		if len(batch) >= batchSize {
 			if err := sendBatch(p, topic, partition, batch); err != nil {
 				log.Printf("failed to send batch: %v", err)
+				// add retry logic
 			}
 			batch = batch[:0]
 		}
@@ -143,6 +149,7 @@ func produceFromCSV(p *producer.Producer, csvPath, topic string, partition, batc
 	if len(batch) > 0 {
 		if err := sendBatch(p, topic, partition, batch); err != nil {
 			log.Printf("failed to send final batch: %v", err)
+			return err
 		}
 	}
 
@@ -150,7 +157,7 @@ func produceFromCSV(p *producer.Producer, csvPath, topic string, partition, batc
 	return nil
 }
 
-func sendBatch(p *producer.Producer, topic string, partition int, msgs []*pb.Message) error {
+func sendBatch(p ProducerIface, topic string, partition int, msgs []*pb.Message) error {
 	err := p.Produce(topic, partition, msgs)
 	if err != nil {
 		return fmt.Errorf("Produce RPC error: %w", err)

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,16 +12,29 @@ import (
 	"github.com/gorilla/mux"
 
 	"telemetry-pipeline/internal/model"
-	"telemetry-pipeline/internal/service"
 )
 
-type GPUHandler struct {
-	service *service.GPUService
+type GPUServiceInterface interface {
+	ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, int, error)
+	GetGPUTelemetry(ctx context.Context, device string, hostname string, start, end *time.Time, limit, offset int) ([]model.Telemetry, int, error)
+	GetGPUMetrics(ctx context.Context, device string, hostname string, metricName model.MetricName, agg model.Aggregation, start, end *time.Time, limit, offset int) ([]model.MetricsResponse, error)
 }
 
-func NewGPUHandler(service *service.GPUService) *GPUHandler {
+type GPUHandler struct {
+	service GPUServiceInterface
+}
+
+func NewGPUHandler(service GPUServiceInterface) *GPUHandler {
 	return &GPUHandler{service: service}
 }
+
+// type GPUHandler struct {
+// 	service *service.GPUService
+// }
+
+// func NewGPUHandler(service *service.GPUService) *GPUHandler {
+// 	return &GPUHandler{service: service}
+// }
 
 // @Summary List GPUs
 // @Description Returns list of unique GPU IDs available in telemetry data.

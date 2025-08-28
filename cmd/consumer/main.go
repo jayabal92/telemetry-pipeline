@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
@@ -24,6 +25,12 @@ const (
 	maxMessages = 1000
 	waitMs      = 500
 )
+
+type DBConn interface {
+	CopyFrom(ctx context.Context, table pgx.Identifier, columns []string, rows pgx.CopyFromSource) (int64, error)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 func main() {
 	// === Load Config from ENV ===
@@ -143,7 +150,7 @@ func main() {
 }
 
 // copyInsert uses pgx.CopyFrom for bulk insert
-func copyInsert(ctx context.Context, conn *pgx.Conn, telemetryBatch []model.Telemetry) error {
+func copyInsert(ctx context.Context, conn DBConn, telemetryBatch []model.Telemetry) error {
 	rows := make([][]interface{}, len(telemetryBatch))
 	for i, t := range telemetryBatch {
 		rows[i] = []interface{}{
@@ -175,7 +182,7 @@ func copyInsert(ctx context.Context, conn *pgx.Conn, telemetryBatch []model.Tele
 }
 
 // persist last committed offset
-func commitOffset(ctx context.Context, conn *pgx.Conn, groupID, topic string, partition int, offset int64) {
+func commitOffset(ctx context.Context, conn DBConn, groupID, topic string, partition int, offset int64) {
 	_, err := conn.Exec(ctx, `
 		INSERT INTO consumer_offsets (group_id, topic, partition, committed_offset)
 		VALUES ($1,$2,$3,$4)
@@ -188,7 +195,7 @@ func commitOffset(ctx context.Context, conn *pgx.Conn, groupID, topic string, pa
 }
 
 // load last committed offset
-func loadOffset(ctx context.Context, conn *pgx.Conn, groupID, topic string, partition int) int64 {
+func loadOffset(ctx context.Context, conn DBConn, groupID, topic string, partition int) int64 {
 	var offset int64
 	err := conn.QueryRow(ctx, `
 		SELECT committed_offset FROM consumer_offsets 

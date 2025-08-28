@@ -8,10 +8,10 @@ import (
 )
 
 type GPUService struct {
-	repo *repository.GPURepository
+	repo repository.GPURepository
 }
 
-func NewGPUService(repo *repository.GPURepository) *GPUService {
+func NewGPUService(repo repository.GPURepository) *GPUService {
 	return &GPUService{repo: repo}
 }
 

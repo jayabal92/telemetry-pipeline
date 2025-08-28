@@ -9,15 +9,22 @@ import (
 	"time"
 )
 
-type GPURepository struct {
+type GPURepositoryImpl struct {
 	db *sql.DB
 }
 
-func NewGPURepository(db *sql.DB) *GPURepository {
-	return &GPURepository{db: db}
+// GPURepository defines the interface for telemetry storage operations.
+type GPURepository interface {
+	ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, int, error)
+	GetGPUTelemetry(ctx context.Context, device, hostname string, startTime, endTime *time.Time, limit, offset int) ([]model.Telemetry, int, error)
+	GetGPUMetrics(ctx context.Context, device string, hostname string, metricName model.MetricName, agg model.Aggregation, startTime, endTime *time.Time, limit, offset int) ([]model.MetricsResponse, error)
 }
 
-func (r *GPURepository) ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, int, error) {
+func NewGPURepository(db *sql.DB) GPURepository {
+	return GPURepositoryImpl{db: db}
+}
+
+func (r GPURepositoryImpl) ListGPUs(ctx context.Context, limit, offset int) ([]model.GPU, int, error) {
 	args := []interface{}{limit, offset}
 	query := `
 	SELECT DISTINCT device, hostname,
@@ -48,7 +55,7 @@ func (r *GPURepository) ListGPUs(ctx context.Context, limit, offset int) ([]mode
 }
 
 // GPU telemetry with pagination and optional time range
-func (r *GPURepository) GetGPUTelemetry(
+func (r GPURepositoryImpl) GetGPUTelemetry(
 	ctx context.Context,
 	device, hostname string,
 	startTime, endTime *time.Time,
@@ -121,7 +128,7 @@ func (r *GPURepository) GetGPUTelemetry(
 }
 
 // GPU telemetry with pagination and optional time range
-func (r *GPURepository) GetGPUMetrics(
+func (r GPURepositoryImpl) GetGPUMetrics(
 	ctx context.Context,
 	device string,
 	hostname string,
