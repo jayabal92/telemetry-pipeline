@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 )
@@ -196,7 +197,7 @@ func (s *Server) ensurePartition(ctx context.Context, t string, p int32, require
 				followers[id] = addr
 			}
 		}
-		var dialOpt grpc.DialOption = grpc.WithInsecure()
+		var dialOpt grpc.DialOption = grpc.WithTransportCredentials(insecure.NewCredentials())
 		if tlsCfg, _ := s.cfg.Etcd.TLS.GRPCCredentials(); tlsCfg != nil {
 			dialOpt = grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg))
 		}

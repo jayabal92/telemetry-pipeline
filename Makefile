@@ -108,7 +108,7 @@ install: deps
 	helm install $(RELEASE_NAME) $(CHART_DIR) -n $(NAMESPACE) --create-namespace
 
 upgrade: deps
-	helm upgrade --install $(RELEASE_NAME) $(CHART_NAME) -n $(NAMESPACE)
+	helm upgrade --install $(RELEASE_NAME) $(CHART_DIR) -n $(NAMESPACE)
 
 template: deps
 	helm template $(RELEASE_NAME) $(CHART_DIR) -n $(NAMESPACE)

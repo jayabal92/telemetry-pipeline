@@ -211,10 +211,6 @@ cd chart
 helm dependency update telemetry-platform
 helm upgrade --install tp chart/telemetry-platform -n telemetry --create-namespace
 
-# Create Topic
-% grpcurl -plaintext -d '{"topic":"events","partitions":3,"rf":3}' \
-  127.0.0.1:9092 mq.MQ/CreateTopic
-
 # copy CSV file to producer pod (unable to create configmap, due to max size issue 1MB)
 % kubectl cp data/dcgm_metrics_20250718_134233.csv <producer pod>:/data/input.csv -n telemetry
 ```

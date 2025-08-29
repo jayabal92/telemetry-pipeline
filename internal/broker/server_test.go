@@ -15,6 +15,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // --- fake metadata.Store for unit test ---
@@ -97,7 +98,7 @@ func startTestBroker(t *testing.T, dir string) (*Server, proto.MQClient, func())
 
 	go s.GRPCSrv.Serve(lis)
 
-	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
+	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("dial err: %v", err)
 	}

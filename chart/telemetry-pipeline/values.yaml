@@ -8,7 +8,7 @@ producer:
   enabled: true
   image:
     repository: telemetry-pipeline/producer
-    tag: v4-test
+    tag: v9-test
   csv:
     pvc:
       enabled: true
@@ -24,7 +24,7 @@ consumer:
   replicas: 1
   image:
     repository: telemetry-pipeline/consumer
-    tag: v4-test
+    tag: v9-test
   groupId: "telemetry-consumers"
   topic: "gpu-telemetry"
   partition: -1
@@ -42,7 +42,7 @@ api:
   replicas: 1
   image:
     repository: telemetry-pipeline/apiserver
-    tag: v4-test
+    tag: v9-test
   service:
     type: ClusterIP
     port: 8080
@@ -55,7 +55,8 @@ api:
 queue:
   port: 9092
   topic: "events"
-
+  maxpartition: 3
+  replica: 2
 
 # DB connection details (used by consumer + API)
 db:

@@ -19,6 +19,19 @@ spec:
         app.kubernetes.io/component: consumer
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      initContainers:
+        - name: wait-for-msg-queue
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for msg-queue..."
+              until nc -z {{ .Release.Name }}-msg-queue-headless.{{ .Release.Namespace }}.svc.cluster.local {{ .Values.queue.port }}; do
+                echo "msg-queue not ready, sleeping..."
+                sleep 5
+              done
+              echo "msg-queue is up!"
       containers:
         - name: consumer
           image: "{{ .Values.consumer.image.repository }}:{{ .Values.consumer.image.tag }}"

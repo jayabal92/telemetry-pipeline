@@ -10,6 +10,10 @@ data:
   MQ_TOPIC: "{{ .Values.queue.topic }}"
   MQ_PARTITION: "{{ .Values.queue.partition }}"
   MQ_SERVER: "{{ .Release.Name }}-msg-queue-headless.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.queue.port }}"
+  MQ_MAX_PARTITION: "{{ .Values.queue.maxpartition }}"
+  MQ_REPLICA: "{{ .Values.queue.replica }}"
   APP_DB_HOST: {{ printf "%s-postgresql" .Release.Name }}
   APP_DB_PORT: "5432"
   APP_DB_NAME: {{ .Values.postgresql.auth.database | quote }}
+
+

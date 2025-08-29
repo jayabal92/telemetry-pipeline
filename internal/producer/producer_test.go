@@ -1,155 +1,163 @@
-package producer
+package producer_test
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	"telemetry-pipeline/internal/cluster"
+	"telemetry-pipeline/internal/producer"
 	pb "telemetry-pipeline/proto"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
 
-// ---- mock MQClient ----
-type mockMQClient struct {
-	metadataResp *pb.MetadataResponse
-	metadataErr  error
-	produceResp  *pb.ProduceResponse
-	produceErr   error
+// ---- unified fake MQClient ----
+type stubMQClient struct {
+	produceFn     func(ctx context.Context, in *pb.ProduceRequest, opts ...grpc.CallOption) (*pb.ProduceResponse, error)
+	createTopicFn func(ctx context.Context, in *pb.CreateTopicRequest, opts ...grpc.CallOption) (*pb.CreateTopicResponse, error)
+	metadataFn    func(ctx context.Context, in *pb.MetadataRequest, opts ...grpc.CallOption) (*pb.MetadataResponse, error)
 }
 
-func (m *mockMQClient) Produce(ctx context.Context, in *pb.ProduceRequest, opts ...grpc.CallOption) (*pb.ProduceResponse, error) {
-	return m.produceResp, m.produceErr
+func (s *stubMQClient) Produce(ctx context.Context, in *pb.ProduceRequest, opts ...grpc.CallOption) (*pb.ProduceResponse, error) {
+	if s.produceFn == nil {
+		return nil, errors.New("Produce not implemented")
+	}
+	return s.produceFn(ctx, in, opts...)
 }
-func (m *mockMQClient) Metadata(ctx context.Context, in *pb.MetadataRequest, opts ...grpc.CallOption) (*pb.MetadataResponse, error) {
-	return m.metadataResp, m.metadataErr
+func (s *stubMQClient) CreateTopic(ctx context.Context, in *pb.CreateTopicRequest, opts ...grpc.CallOption) (*pb.CreateTopicResponse, error) {
+	if s.createTopicFn == nil {
+		return nil, errors.New("CreateTopic not implemented")
+	}
+	return s.createTopicFn(ctx, in, opts...)
 }
-
-// ---- unused methods (stubbed for interface compliance) ----
-func (m *mockMQClient) Fetch(ctx context.Context, in *pb.FetchRequest, opts ...grpc.CallOption) (*pb.FetchResponse, error) {
-	return nil, errors.New("not implemented")
-}
-func (m *mockMQClient) CreateTopic(ctx context.Context, in *pb.CreateTopicRequest, opts ...grpc.CallOption) (*pb.CreateTopicResponse, error) {
-	return nil, errors.New("not implemented")
-}
-func (m *mockMQClient) DeleteTopic(ctx context.Context, in *pb.DeleteTopicRequest, opts ...grpc.CallOption) (*pb.DeleteTopicResponse, error) {
-	return nil, errors.New("not implemented")
-}
-func (m *mockMQClient) CommitOffsets(ctx context.Context, in *pb.CommitOffsetsRequest, opts ...grpc.CallOption) (*pb.CommitOffsetsResponse, error) {
-	return nil, errors.New("not implemented")
-}
-func (m *mockMQClient) FetchOffsets(ctx context.Context, in *pb.FetchOffsetsRequest, opts ...grpc.CallOption) (*pb.FetchOffsetsResponse, error) {
-	return nil, errors.New("not implemented")
+func (s *stubMQClient) Metadata(ctx context.Context, in *pb.MetadataRequest, opts ...grpc.CallOption) (*pb.MetadataResponse, error) {
+	if s.metadataFn == nil {
+		return nil, errors.New("Metadata not implemented")
+	}
+	return s.metadataFn(ctx, in, opts...)
 }
 
-// ---- Tests ----
+// unused methods
+func (*stubMQClient) Fetch(ctx context.Context, in *pb.FetchRequest, opts ...grpc.CallOption) (*pb.FetchResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (*stubMQClient) DeleteTopic(ctx context.Context, in *pb.DeleteTopicRequest, opts ...grpc.CallOption) (*pb.DeleteTopicResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (*stubMQClient) CommitOffsets(ctx context.Context, in *pb.CommitOffsetsRequest, opts ...grpc.CallOption) (*pb.CommitOffsetsResponse, error) {
+	return nil, errors.New("not implemented")
+}
+func (*stubMQClient) FetchOffsets(ctx context.Context, in *pb.FetchOffsetsRequest, opts ...grpc.CallOption) (*pb.FetchOffsetsResponse, error) {
+	return nil, errors.New("not implemented")
+}
 
-// ✅ Positive case: produce works first try
-func TestProduce_Success(t *testing.T) {
-	p := NewProducer("bootstrap:9092")
+// ---- test helpers ----
 
-	// Setup leader map directly (simulate refresh worked)
-	p.leaderMap["topicA"] = map[int]string{0: "leader1"}
-	p.clients["leader1"] = &mockMQClient{
-		produceResp: &pb.ProduceResponse{
-			Offsets: []int64{10, 11},
+// configure leader + inject fake client
+func setupLeaderAndClient(t *testing.T, prod *producer.Producer, topic string, partition int, broker string, client pb.MQClient) {
+	m := prod.Meta()
+	cluster.RefreshMetadataHook = func(ctx context.Context, mm *cluster.MetadataManager, t string) error {
+		mm.SetLeaderMap(map[string]map[int]string{topic: {partition: broker}})
+		return nil
+	}
+	t.Cleanup(func() { cluster.RefreshMetadataHook = nil })
+	m.InjectClient(broker, client)
+}
+
+func TestProducer_Produce_Success(t *testing.T) {
+	prod := producer.NewProducer("bootstrap:1234")
+
+	client := &stubMQClient{
+		produceFn: func(ctx context.Context, in *pb.ProduceRequest, opts ...grpc.CallOption) (*pb.ProduceResponse, error) {
+			return &pb.ProduceResponse{Offsets: []int64{1, 2, 3}}, nil
 		},
 	}
+	setupLeaderAndClient(t, prod, "testTopic", 0, "broker1", client)
 
-	msgs := []*pb.Message{{Key: []byte("k1"), Value: []byte("v1")}}
-	err := p.Produce("topicA", 0, msgs)
+	err := prod.Produce("testTopic", 0, []*pb.Message{{Value: []byte("hello")}})
 	require.NoError(t, err)
 }
 
-// 🔴 Metadata fetch fails
-func TestProduce_MetadataFails(t *testing.T) {
-	p := NewProducer("bootstrap:9092")
-	p.clients["bootstrap:9092"] = &mockMQClient{
-		metadataErr: errors.New("boom"),
-	}
+func TestProducer_Produce_FailsAfterRetry(t *testing.T) {
+	prod := producer.NewProducer("bootstrap:1234")
 
-	err := p.Produce("topicA", 0, []*pb.Message{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "metadata lookup failed")
-}
-
-// 🔴 Leader missing from broker map
-func TestProduce_LeaderMissing(t *testing.T) {
-	p := NewProducer("bootstrap:9092")
-	p.clients["bootstrap:9092"] = &mockMQClient{
-		metadataResp: &pb.MetadataResponse{
-			Brokers:    []*pb.Broker{{Id: "b1", Host: "h1", Port: 1234}},
-			Partitions: []*pb.TopicPartitionMeta{{Topic: "topicA", Partition: 0, Leader: "missing"}},
+	client := &stubMQClient{
+		produceFn: func(ctx context.Context, in *pb.ProduceRequest, opts ...grpc.CallOption) (*pb.ProduceResponse, error) {
+			return nil, errors.New("fatal error")
 		},
 	}
+	setupLeaderAndClient(t, prod, "testTopic", 0, "broker1", client)
 
-	err := p.Produce("topicA", 0, []*pb.Message{})
+	err := prod.Produce("testTopic", 0, []*pb.Message{{Value: []byte("fail")}})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "leader missing not found")
+	require.Contains(t, err.Error(), "fatal error")
 }
 
-// 🔴 Produce RPC error (not "not leader")
-func TestProduce_RPCError(t *testing.T) {
-	p := NewProducer("bootstrap:9092")
+func TestProducer_Produce_NotLeaderThenRetry(t *testing.T) {
+	prod := producer.NewProducer("bootstrap:1234")
 
-	p.leaderMap["topicA"] = map[int]string{0: "addr1"}
-	p.clients["addr1"] = &mockMQClient{
-		produceErr: errors.New("network down"),
-	}
-
-	err := p.Produce("topicA", 0, []*pb.Message{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "produce RPC error")
-}
-
-// 🔴 Produce fails with "not leader", retry also fails
-func TestProduce_NotLeader_RetryFails(t *testing.T) {
-	p := NewProducer("bootstrap:9092")
-
-	// First leader returns "not leader"
-	first := &mockMQClient{produceErr: errors.New("not leader")}
-	// Retry leader returns another error
-	second := &mockMQClient{produceErr: errors.New("still bad")}
-
-	p.leaderMap["topicA"] = map[int]string{0: "oldLeader"}
-	p.clients["oldLeader"] = first
-	p.clients["bootstrap:9092"] = &mockMQClient{
-		metadataResp: &pb.MetadataResponse{
-			Brokers:    []*pb.Broker{{Id: "b2", Host: "h2", Port: 9999}},
-			Partitions: []*pb.TopicPartitionMeta{{Topic: "topicA", Partition: 0, Leader: "b2"}},
+	calls := 0
+	client := &stubMQClient{
+		produceFn: func(ctx context.Context, in *pb.ProduceRequest, opts ...grpc.CallOption) (*pb.ProduceResponse, error) {
+			calls++
+			if calls == 1 {
+				return nil, fmt.Errorf("not leader: leader=broker2")
+			}
+			return &pb.ProduceResponse{Offsets: []int64{99}}, nil
 		},
 	}
-	p.clients["h2:9999"] = second
+	setupLeaderAndClient(t, prod, "testTopic", 0, "broker1", client)
 
-	err := p.Produce("topicA", 0, []*pb.Message{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "retry produce failed")
-}
-
-// ✅ Positive case: not leader first, retry succeeds
-func TestProduce_NotLeader_RetrySuccess(t *testing.T) {
-	p := NewProducer("bootstrap:9092")
-
-	// First attempt fails
-	first := &mockMQClient{produceErr: errors.New("not leader")}
-	// Retry works
-	second := &mockMQClient{produceResp: &pb.ProduceResponse{
-		Offsets: []int64{100},
-	}}
-
-	p.leaderMap["topicA"] = map[int]string{0: "oldLeader"}
-	p.clients["oldLeader"] = first
-	p.clients["bootstrap:9092"] = &mockMQClient{
-		metadataResp: &pb.MetadataResponse{
-			Brokers:    []*pb.Broker{{Id: "b2", Host: "h2", Port: 9999}},
-			Partitions: []*pb.TopicPartitionMeta{{Topic: "topicA", Partition: 0, Leader: "b2"}},
-		},
-	}
-	p.clients["h2:9999"] = second
-
-	msgs := []*pb.Message{{Key: []byte("k1"), Value: []byte("v1")}}
-	err := p.Produce("topicA", 0, msgs)
+	err := prod.Produce("testTopic", 0, []*pb.Message{{Value: []byte("retry-msg")}})
 	require.NoError(t, err)
+	require.Equal(t, 2, calls, "Produce should retry once after not leader")
+}
+func TestProducer_CreateTopic_Success(t *testing.T) {
+	prod := producer.NewProducer("bootstrap:1234")
+	m := prod.Meta()
+
+	// avoid real network dial
+	cluster.RefreshMetadataHook = func(ctx context.Context, mm *cluster.MetadataManager, topic string) error {
+		mm.SetLeaderMap(map[string]map[int]string{topic: {0: "broker1"}})
+		return nil
+	}
+	defer func() { cluster.RefreshMetadataHook = nil }()
+
+	fakeClient := &stubMQClient{
+		createTopicFn: func(ctx context.Context, in *pb.CreateTopicRequest, opts ...grpc.CallOption) (*pb.CreateTopicResponse, error) {
+			require.Equal(t, "newTopic", in.Topic)
+			require.Equal(t, int32(3), in.Partitions)
+			return &pb.CreateTopicResponse{}, nil
+		},
+	}
+	m.InjectClient("bootstrap:1234", fakeClient)
+
+	err := prod.CreateTopic("newTopic", 3, 2)
+	require.NoError(t, err)
+}
+
+func TestProducer_CreateTopic_Failure(t *testing.T) {
+	prod := producer.NewProducer("bootstrap:1234")
+	m := prod.Meta()
+
+	// avoid real network dial
+	cluster.RefreshMetadataHook = func(ctx context.Context, mm *cluster.MetadataManager, topic string) error {
+		mm.SetLeaderMap(map[string]map[int]string{topic: {0: "broker1"}})
+		return nil
+	}
+	defer func() { cluster.RefreshMetadataHook = nil }()
+
+	fakeClient := &stubMQClient{
+		createTopicFn: func(ctx context.Context, in *pb.CreateTopicRequest, opts ...grpc.CallOption) (*pb.CreateTopicResponse, error) {
+			return nil, errors.New("create topic failed")
+		},
+	}
+	m.InjectClient("bootstrap:1234", fakeClient)
+
+	err := prod.CreateTopic("badTopic", 1, 1)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "create topic failed")
 }

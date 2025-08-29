@@ -14,10 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/lib/pq"
-	"google.golang.org/grpc"
 
+	"telemetry-pipeline/internal/consumer"
 	"telemetry-pipeline/internal/model"
-	pb "telemetry-pipeline/proto"
 )
 
 const (
@@ -64,13 +63,7 @@ func main() {
 
 	// === Connect to gRPC MQ ===
 	log.Printf("connecting to msg queue: %s", queueAddr)
-	grpcConn, err := grpc.NewClient(queueAddr, grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("failed to dial msg-queue: %v", err)
-	}
-	defer grpcConn.Close()
-
-	client := pb.NewMQClient(grpcConn)
+	consumer := consumer.NewConsumer(queueAddr)
 
 	// Graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
@@ -92,13 +85,7 @@ func main() {
 			}
 			return
 		default:
-			resp, err := client.Fetch(ctx, &pb.FetchRequest{
-				Topic:       topic,
-				Partition:   partition,
-				Offset:      offset,
-				MaxMessages: maxMessages,
-				WaitMs:      waitMs,
-			})
+			resp, err := consumer.Fetch(topic, int(partition), offset, maxMessages)
 			if err != nil {
 				log.Printf("⚠️ fetch error: %v", err)
 				time.Sleep(time.Second)

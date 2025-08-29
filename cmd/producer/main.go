@@ -17,6 +17,11 @@ import (
 	pb "telemetry-pipeline/proto"
 )
 
+const (
+	NumOfPartition    = 1
+	ReplicationFactor = 1
+)
+
 type ProducerIface interface {
 	Produce(topic string, partition int, msgs []*pb.Message) error
 	Close()
@@ -34,9 +39,17 @@ func main() {
 	batchSize := getEnvInt("BATCH_SIZE", 1000)
 	interval := getEnvInt("READ_INTERVAL", 60)
 
+	rf := int32(getEnvInt("MQ_REPLICA", ReplicationFactor))
+	numOfPartition := int32(getEnvInt("MQ_MAX_PARTITION", NumOfPartition))
+
 	// Create producer with bootstrap broker
 	producer := producer.NewProducer(serverAddr)
 	defer producer.Close()
+
+	if err := producer.CreateTopic(topic, numOfPartition, int32(rf)); err != nil {
+		// log message already captured
+		return
+	}
 
 	// Ticker loop
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)

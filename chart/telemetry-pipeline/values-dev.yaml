@@ -56,6 +56,8 @@ api:
 queue:
   port: 9092
   topic: "events"
+  maxpartition: 1
+  replica: 1
 
 
 postgresql:

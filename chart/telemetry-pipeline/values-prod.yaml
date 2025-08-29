@@ -56,3 +56,5 @@ api:
 queue:
   port: 9092
   topic: "events"
+  maxpartition: 3
+  replica: 2
