@@ -267,12 +267,35 @@ WARNING: There are "resources" sections in the chart not set. Using "resourcesPr
     etcd --listen-client-urls=http://127.0.0.1:2379 \
         --advertise-client-urls=http://127.0.0.1:2379
 
+Helm Install:
 
 ![helm install](image-2.png)
+
+List of Pods:
+
 ![pods](image-3.png)
+
+Producer logs: 
+
 ![Producer logs](image-4.png)
+
+Consumer Logs:
+
 ![Consumer logs](image-1.png)
+
+APIServer: 
+ListGPU API:
+
 ![listGPUS api](image-5.png)
+
+Metrics API:
+
 ![getMetrics](image-6.png)
+
+Metrics API Reposponse:
+
 ![GetMetrics Response](image-7.png)
+
+Telemetry API:
+
 ![Get Telemetry API](image-8.png)
