@@ -6,6 +6,7 @@ VERSION     ?= latest
 NAMESPACE   ?= telemetry
 CHART_NAME  := telemetry-platform
 CHART_DIR   := chart/telemetry-platform
+RELEASE_NAME := tp
 
 # Images
 MSG_QUEUE_IMG   := $(REGISTRY)/msg-queue:$(VERSION)
@@ -110,7 +111,7 @@ upgrade: deps
 	helm upgrade --install $(RELEASE_NAME) $(CHART_NAME) -n $(NAMESPACE)
 
 template: deps
-	helm template $(RELEASE_NAME) $(CHART_NAME) -n $(NAMESPACE)
+	helm template $(RELEASE_NAME) $(CHART_DIR) -n $(NAMESPACE)
 
 uninstall:
 	helm uninstall $(RELEASE_NAME) -n $(NAMESPACE)

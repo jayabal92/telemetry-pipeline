@@ -1,6 +1,6 @@
 replicaCount: 3
 image:
-  repository: jayabal92/msg-queue
+  repository: telemetry-pipeline/msg-queue
   tag: v4-test
   pullPolicy: IfNotPresent
 serviceAccount:

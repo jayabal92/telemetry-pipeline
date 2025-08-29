@@ -32,8 +32,3 @@
 {{- define "msg-queue.clusterDomain" -}}
 {{- default "cluster.local" .Values.clusterDomain -}}
 {{- end -}}
-
-{{/* Export fullname for umbrella */}}
-{{- define "telemetry-platform.msgQueueFullname" -}}
-{{ include "msg-queue.fullname" . }}
-{{- end -}}

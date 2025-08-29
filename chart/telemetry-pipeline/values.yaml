@@ -7,8 +7,8 @@ image:
 producer:
   enabled: true
   image:
-    repository: telemetry-producer
-    tag: v1-test
+    repository: telemetry-pipeline/producer
+    tag: v4-test
   csv:
     pvc:
       enabled: true
@@ -23,8 +23,8 @@ consumer:
   enabled: true
   replicas: 1
   image:
-    repository: telemetry-consumer
-    tag: v3-test
+    repository: telemetry-pipeline/consumer
+    tag: v4-test
   groupId: "telemetry-consumers"
   topic: "gpu-telemetry"
   partition: -1
@@ -41,8 +41,8 @@ api:
   enabled: true
   replicas: 1
   image:
-    repository: telemetry-apiserver
-    tag: v2-test
+    repository: telemetry-pipeline/apiserver
+    tag: v4-test
   service:
     type: ClusterIP
     port: 8080
